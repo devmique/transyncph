@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, MapPin } from 'lucide-react'
+import { Plus, Trash2, MapPin, Pencil } from 'lucide-react'
 import { Route, Terminal } from '@/types'
 import { Button } from '@/components/ui/button'
 import InputField from '@/components/ui/InputField'
@@ -24,6 +24,34 @@ export default function RoutesPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [formData, setFormData] = useState<Route>(empty)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  // null = the form is creating; an id = the form is editing that route
+  const [editingId, setEditingId] = useState<string | null>(null)
+
+  const openCreate = () => {
+    setEditingId(null)
+    setFormData(empty)
+    setFormOpen(true)
+  }
+
+  const openEdit = (route: Route) => {
+    setEditingId(route._id ?? null)
+    setFormData({
+      routeNumber: route.routeNumber,
+      startPoint: route.startPoint,
+      endPoint: route.endPoint,
+      distance: route.distance,
+      estimatedTime: route.estimatedTime,
+      startTerminalId: route.startTerminalId,
+      endTerminalId: route.endTerminalId,
+    })
+    setFormOpen(true)
+  }
+
+  const closeForm = () => {
+    setFormOpen(false)
+    setEditingId(null)
+    setFormData(empty)
+  }
 
   useEffect(() => {
     fetchRoutes()
@@ -63,10 +91,11 @@ export default function RoutesPage() {
     try {
       setError('')
       const res = await fetch('/api/routes', {
-        method: 'POST',
+        method: editingId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          ...(editingId ? { id: editingId } : {}),
           routeNumber:   cleanedRouteNumber,
           startPoint:    cleanedStartPoint,
           endPoint:      cleanedEndPoint,
@@ -75,8 +104,7 @@ export default function RoutesPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to save route')
-      setFormData(empty)
-      setFormOpen(false)
+      closeForm()
       fetchRoutes()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save route')
@@ -108,7 +136,7 @@ export default function RoutesPage() {
           <p className="text-sm font-light text-slate-500">Manage your bus routes and stops</p>
         </div>
         <Button
-          onClick={() => setFormOpen(!formOpen)}
+          onClick={openCreate}
           className="bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white text-sm font-semibold h-9 px-4 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
@@ -120,7 +148,7 @@ export default function RoutesPage() {
 
       {formOpen && (
         <div className="bg-slate-900/60 backdrop-blur-sm border border-white/8 rounded-xl p-6 mb-6">
-          <h2 className="text-base font-semibold text-slate-100 mb-5">Create New Route</h2>
+          <h2 className="text-base font-semibold text-slate-100 mb-5">{editingId ? 'Edit Route' : 'Create New Route'}</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
 
             <div className="grid md:grid-cols-2 gap-4">
@@ -209,9 +237,9 @@ export default function RoutesPage() {
 
             <div className="flex gap-2 pt-1">
               <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold h-9 px-4 cursor-pointer">
-                Save Route
+                {editingId ? 'Update Route' : 'Save Route'}
               </Button>
-              <Button type="button" variant="ghost" onClick={() => setFormOpen(false)}
+              <Button type="button" variant="ghost" onClick={closeForm}
                 className="h-9 px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-sm font-medium cursor-pointer">
                 Cancel
               </Button>
@@ -258,10 +286,16 @@ export default function RoutesPage() {
                     )}
                   </div>
                 </div>
-                <Button variant="ghost" onClick={() => route._id && setDeletingId(route._id)}
-                  className="w-8 h-8 p-0 text-slate-600 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/10 cursor-pointer">
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button variant="ghost" onClick={() => openEdit(route)} aria-label={`Edit route ${route.routeNumber}`}
+                    className="w-8 h-8 p-0 text-slate-600 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent hover:border-blue-500/10 cursor-pointer">
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" onClick={() => route._id && setDeletingId(route._id)} aria-label={`Delete route ${route.routeNumber}`}
+                    className="w-8 h-8 p-0 text-slate-600 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/10 cursor-pointer">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           ))}

@@ -18,8 +18,17 @@ export async function connectToDatabase() {
   await client.connect();
 
   const db = client.db('transync_ph');
-  //  ensure indexes once on first connection
-  await db.collection('operators').createIndex({ email: 1 }, { unique: true });
+  //  ensure indexes once on first connection.
+  //  Every dashboard query filters by operatorId, so without these each one is
+  //  a full collection scan.
+  await Promise.all([
+    db.collection('operators').createIndex({ email: 1 }, { unique: true }),
+    db.collection('routes').createIndex({ operatorId: 1 }),
+    db.collection('terminals').createIndex({ operatorId: 1 }),
+    db.collection('schedules').createIndex({ operatorId: 1 }),
+    db.collection('schedules').createIndex({ routeId: 1 }),
+    db.collection('announcements').createIndex({ operatorId: 1, createdAt: -1 }),
+  ]);
 
   cachedClient = client;
   cachedDb = db;

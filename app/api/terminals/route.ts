@@ -13,6 +13,10 @@ const terminalSchema = z.object({
   facilities: z.array(z.string()).optional().default([]),
 })
 
+const terminalUpdateSchema = terminalSchema.extend({
+  id: z.string().refine(v => ObjectId.isValid(v), 'Invalid terminal ID'),
+})
+
 export async function GET(request: NextRequest) {
   try {
     const payload = getPayload(request)
@@ -64,6 +68,41 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+export async function PUT(request: NextRequest) {
+  try {
+    const payload = getPayload(request)
+    if (!payload) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const parsed = terminalUpdateSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 })
+    }
+
+    const { id, ...terminalData } = parsed.data
+    const db = await getDatabase()
+
+    // operatorId stays in the filter so one operator can never edit another's terminal
+    const result = await db.collection('terminals').updateOne(
+      { _id: new ObjectId(id), operatorId: payload.operatorId },
+      { $set: { ...terminalData, updatedAt: new Date() } }
+    )
+
+    if (result.matchedCount === 0) {
+      return NextResponse.json({ error: 'Terminal not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ id, ...terminalData })
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to update terminal' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
     const payload = getPayload(request)
@@ -74,6 +113,23 @@ export async function DELETE(request: NextRequest) {
     if (!id || !ObjectId.isValid(id)) return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
 
     const db = await getDatabase()
+
+    // Refuse rather than orphan. Routes store terminal ids as strings, and the
+    // $lookup in the routes API preserves empty matches, so a dangling
+    // reference used to render as a blank cell instead of failing loudly.
+    const dependents = await db.collection('routes').countDocuments({
+      operatorId: payload.operatorId,
+      $or: [{ startTerminalId: id }, { endTerminalId: id }],
+    })
+    if (dependents > 0) {
+      return NextResponse.json(
+        {
+          error: `${dependents} route${dependents === 1 ? '' : 's'} still use${dependents === 1 ? 's' : ''} this terminal. Update ${dependents === 1 ? 'it' : 'them'} first.`,
+        },
+        { status: 409 }
+      )
+    }
+
     await db.collection('terminals').deleteOne({
       _id: new ObjectId(id),
       operatorId: payload.operatorId,
