@@ -208,7 +208,7 @@ export default function SchedulesPage() {
       {/* ── FORM ── */}
       {formOpen && (
         <div className="bg-slate-900/60 border border-white/8 rounded-xl p-6 mb-6">
-          <h2 className="text-base font-semibold text-slate-100 mb-5">
+          <h2 className="text-lg font-semibold text-slate-100 mb-5">
             {editingId ? 'Edit Schedule' : 'Create New Schedule'}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -320,7 +320,7 @@ export default function SchedulesPage() {
                         className={`h-6 px-2 rounded text-[11px] font-medium transition cursor-pointer border ${
                           active
                             ? 'bg-blue-600/15 border-blue-600/30 text-blue-400'
-                            : 'bg-white/5 border-white/10 text-slate-500 hover:text-slate-300'
+                            : 'bg-white/5 border-white/10 text-slate-500 hover:text-slate-100'
                         }`}
                       >
                         {label}
@@ -342,7 +342,7 @@ export default function SchedulesPage() {
                       className={`h-9 w-12 rounded-lg text-xs font-semibold transition cursor-pointer border ${
                         on
                           ? 'bg-blue-600 border-blue-600 text-white'
-                          : 'bg-white/5 border-white/10 text-slate-500 hover:text-slate-300 hover:bg-white/10'
+                          : 'bg-white/5 border-white/10 text-slate-500 hover:text-slate-100 hover:bg-white/10'
                       }`}
                     >
                       {label}
@@ -363,7 +363,7 @@ export default function SchedulesPage() {
                 {editingId ? 'Update Schedule' : 'Save Schedule'}
               </Button>
               <Button type="button" variant="ghost" onClick={() => setFormOpen(false)}
-                className="h-9 px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-sm font-medium cursor-pointer">
+                className="h-9 px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 text-sm font-medium cursor-pointer">
                 Cancel
               </Button>
             </div>
@@ -380,7 +380,7 @@ export default function SchedulesPage() {
         </div>
       ) : schedules.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 bg-slate-900/40 border border-white/5 rounded-xl">
-          <Clock className="w-10 h-10 text-slate-700 mb-3" />
+          <Clock className="w-10 h-10 text-slate-500 mb-3" />
           <p className="text-sm text-slate-500">No schedules yet. Create one to get started.</p>
         </div>
       ) : (
@@ -394,7 +394,7 @@ export default function SchedulesPage() {
                 <div className="flex-1">
                   {/* Route name + status */}
                   <div className="flex items-center gap-3 mb-1.5">
-                    <span className="text-base font-bold text-blue-400 tracking-tight">
+                    <span className="text-lg font-bold text-blue-400 tracking-tight">
                       {schedule.route
                         ? `${schedule.route.routeNumber} · ${schedule.route.startPoint} → ${schedule.route.endPoint}`
                         : '—'}
@@ -411,11 +411,11 @@ export default function SchedulesPage() {
                     </span>
                   </div>
                   {/* Times + fare */}
-                  <p className="text-sm text-slate-300 font-medium mb-1">
+                  <p className="text-sm text-slate-100 font-medium mb-1">
                     {schedule.departureTime}
-                    <span className="text-slate-600 mx-2">→</span>
+                    <span className="text-slate-500 mx-2">→</span>
                     {schedule.arrivalTime}
-                    <span className="text-slate-600 mx-2">·</span>
+                    <span className="text-slate-500 mx-2">·</span>
                     <span className="text-emerald-400 font-semibold">₱{schedule.fare}</span>
                   </p>
                   {/* Driver + vehicle */}
@@ -425,7 +425,7 @@ export default function SchedulesPage() {
                 </div>
                 <div className="flex items-center gap-1">
                   <Button variant="ghost" onClick={() => handleCopyDriverLink(schedule._id)}
-                    className="w-8 h-8 p-0 text-slate-600 hover:text-emerald-400 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/10 cursor-pointer">
+                    className="w-8 h-8 p-0 text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/10 cursor-pointer">
                     {copiedId === schedule._id ? (
                       <Check className="w-3.5 h-3.5" />
                     ) : (
@@ -433,11 +433,11 @@ export default function SchedulesPage() {
                     )}
                   </Button>
                   <Button variant="ghost" onClick={() => handleEdit(schedule)}
-                    className="w-8 h-8 p-0 text-slate-600 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent hover:border-blue-500/10 cursor-pointer">
+                    className="w-8 h-8 p-0 text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent hover:border-blue-500/10 cursor-pointer">
                     <Edit2 className="w-3.5 h-3.5" />
                   </Button>
                   <Button variant="ghost" onClick={() => schedule._id && setDeletingId(schedule._id)}
-                    className="w-8 h-8 p-0 text-slate-600 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/10 cursor-pointer">
+                    className="w-8 h-8 p-0 text-slate-500 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/10 cursor-pointer">
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>
                 </div>
@@ -454,14 +454,14 @@ export default function SchedulesPage() {
             <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 mx-auto mb-4">
               <Trash2 className="w-5 h-5 text-red-400" />
             </div>
-            <h3 className="text-base font-semibold text-slate-100 text-center mb-2">Delete Schedule</h3>
+            <h3 className="text-lg font-semibold text-slate-100 text-center mb-2">Delete Schedule</h3>
             <p className="text-sm text-slate-400 text-center mb-6">
               Are you sure you want to delete the schedule for{' '}
-              <span className="text-slate-200 font-medium">{deletingLabel}</span>? This cannot be undone.
+              <span className="text-slate-100 font-medium">{deletingLabel}</span>? This cannot be undone.
             </p>
             <div className="flex gap-2">
               <Button variant="ghost" onClick={() => setDeletingId(null)}
-                className="flex-1 h-9 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-sm font-medium cursor-pointer">
+                className="flex-1 h-9 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 text-sm font-medium cursor-pointer">
                 Cancel
               </Button>
               <Button onClick={confirmDelete}

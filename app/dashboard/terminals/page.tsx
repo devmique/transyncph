@@ -114,7 +114,7 @@ export default function TerminalsPage() {
 
       {formOpen && (
         <div className="bg-slate-900/60 border border-white/8 rounded-xl p-6 mb-6">
-          <h2 className="text-base font-semibold text-slate-100 mb-5">{editingId ? 'Edit Terminal' : 'Create New Terminal'}</h2>
+          <h2 className="text-lg font-semibold text-slate-100 mb-5">{editingId ? 'Edit Terminal' : 'Create New Terminal'}</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
               <InputField
@@ -159,7 +159,7 @@ export default function TerminalsPage() {
                 {editingId ? 'Update Terminal' : 'Save Terminal'}
               </Button>
               <Button type="button" variant="ghost" onClick={closeForm}
-                className="h-9 px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-sm font-medium cursor-pointer">
+                className="h-9 px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 text-sm font-medium cursor-pointer">
                 Cancel
               </Button>
             </div>
@@ -173,7 +173,7 @@ export default function TerminalsPage() {
         </div>
       ) : terminals.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 bg-slate-900/40 border border-white/5 rounded-xl">
-          <Building2 className="w-10 h-10 text-slate-700 mb-3" />
+          <Building2 className="w-10 h-10 text-slate-500 mb-3" />
           <p className="text-sm text-slate-500">No terminals yet. Create one to get started.</p>
         </div>
       ) : (
@@ -185,18 +185,18 @@ export default function TerminalsPage() {
                   <p className="text-sm font-semibold text-slate-100 mb-0.5">{terminal.name}</p>
                   <p className="text-xs text-slate-500 mb-1">{terminal.location}</p>
                   {terminal.lat && terminal.lng && (
-                    <p className="text-xs font-mono text-slate-600">
+                    <p className="text-xs font-mono text-slate-500">
                       {terminal.lat.toFixed(4)}, {terminal.lng.toFixed(4)}
                     </p>
                   )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <Button variant="ghost" onClick={() => openEdit(terminal)} aria-label={`Edit ${terminal.name}`}
-                    className="w-8 h-8 p-0 text-slate-600 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent hover:border-blue-500/10 cursor-pointer">
+                    className="w-8 h-8 p-0 text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent hover:border-blue-500/10 cursor-pointer">
                     <Pencil className="w-4 h-4" />
                   </Button>
                   <Button variant="ghost" onClick={() => terminal._id && setDeletingId(terminal._id)} aria-label={`Delete ${terminal.name}`}
-                    className="w-8 h-8 p-0 text-slate-600 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/10 cursor-pointer">
+                    className="w-8 h-8 p-0 text-slate-500 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/10 cursor-pointer">
                     <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
@@ -212,16 +212,16 @@ export default function TerminalsPage() {
             <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 mx-auto mb-4">
               <Trash2 className="w-5 h-5 text-red-400" />
             </div>
-            <h3 className="text-base font-semibold text-slate-100 text-center mb-2">Delete Terminal</h3>
+            <h3 className="text-lg font-semibold text-slate-100 text-center mb-2">Delete Terminal</h3>
             <p className="text-sm text-slate-400 text-center mb-6">
               Are you sure you want to delete{' '}
-              <span className="text-slate-200 font-medium">
+              <span className="text-slate-100 font-medium">
                 {terminals.find(t => t._id === deletingId)?.name ?? 'this terminal'}
               </span>? This cannot be undone.
             </p>
             <div className="flex gap-2">
               <Button variant="ghost" onClick={() => setDeletingId(null)}
-                className="flex-1 h-9 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-sm font-medium cursor-pointer">
+                className="flex-1 h-9 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-100 text-sm font-medium cursor-pointer">
                 Cancel
               </Button>
               <Button onClick={confirmDelete}
