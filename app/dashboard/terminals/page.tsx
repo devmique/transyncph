@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, Building2 } from 'lucide-react'
+import { Plus, Trash2, Building2, Pencil } from 'lucide-react'
 import { Terminal } from '@/types'
 import { Button } from '@/components/ui/button'
 import InputField from '@/components/ui/InputField'
@@ -15,6 +15,32 @@ export default function TerminalsPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [formData, setFormData] = useState<Terminal>(empty)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  // null = the form is creating; an id = the form is editing that terminal
+  const [editingId, setEditingId] = useState<string | null>(null)
+
+  const openCreate = () => {
+    setEditingId(null)
+    setFormData(empty)
+    setFormOpen(true)
+  }
+
+  const openEdit = (terminal: Terminal) => {
+    setEditingId(terminal._id ?? null)
+    setFormData({
+      name: terminal.name,
+      location: terminal.location,
+      lat: terminal.lat,
+      lng: terminal.lng,
+      facilities: terminal.facilities ?? [],
+    })
+    setFormOpen(true)
+  }
+
+  const closeForm = () => {
+    setFormOpen(false)
+    setEditingId(null)
+    setFormData(empty)
+  }
 
   useEffect(() => { fetchTerminals() }, [])
 
@@ -41,17 +67,19 @@ export default function TerminalsPage() {
     try {
       setError('')
       const res = await fetch('/api/terminals', {
-        method: 'POST',
+        method: editingId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          ...(editingId ? { id: editingId } : {}),
           name: cleanedName,
           location: cleanedLocation,
         }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to save terminal')
-      if (res.ok) { setFormData(empty); setFormOpen(false); fetchTerminals() }
+      closeForm()
+      fetchTerminals()
     } catch (e) { setError(e instanceof Error ? e.message : 'Failed to save terminal') }
   }
 
@@ -75,7 +103,7 @@ export default function TerminalsPage() {
           <p className="text-sm font-light text-slate-500">Manage your bus terminals and pickup points</p>
         </div>
         <Button
-          onClick={() => setFormOpen(!formOpen)}
+          onClick={openCreate}
           className="bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white text-sm font-semibold h-9 px-4 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
@@ -86,7 +114,7 @@ export default function TerminalsPage() {
 
       {formOpen && (
         <div className="bg-slate-900/60 backdrop-blur-sm border border-white/8 rounded-xl p-6 mb-6">
-          <h2 className="text-base font-semibold text-slate-100 mb-5">Create New Terminal</h2>
+          <h2 className="text-base font-semibold text-slate-100 mb-5">{editingId ? 'Edit Terminal' : 'Create New Terminal'}</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
               <InputField
@@ -128,9 +156,9 @@ export default function TerminalsPage() {
             </div>
             <div className="flex gap-2 pt-1">
               <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold h-9 px-4 cursor-pointer">
-                Save Terminal
+                {editingId ? 'Update Terminal' : 'Save Terminal'}
               </Button>
-              <Button type="button" variant="ghost" onClick={() => setFormOpen(false)}
+              <Button type="button" variant="ghost" onClick={closeForm}
                 className="h-9 px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-sm font-medium cursor-pointer">
                 Cancel
               </Button>
@@ -162,10 +190,16 @@ export default function TerminalsPage() {
                     </p>
                   )}
                 </div>
-                <Button variant="ghost" onClick={() => terminal._id && setDeletingId(terminal._id)}
-                  className="w-8 h-8 p-0 text-slate-600 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/10 cursor-pointer">
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Button variant="ghost" onClick={() => openEdit(terminal)} aria-label={`Edit ${terminal.name}`}
+                    className="w-8 h-8 p-0 text-slate-600 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent hover:border-blue-500/10 cursor-pointer">
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button variant="ghost" onClick={() => terminal._id && setDeletingId(terminal._id)} aria-label={`Delete ${terminal.name}`}
+                    className="w-8 h-8 p-0 text-slate-600 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/10 cursor-pointer">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           ))}
