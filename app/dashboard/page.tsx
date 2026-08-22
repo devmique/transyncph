@@ -26,7 +26,7 @@ function StatBadge({ pct, label }: { pct: number; label: string }) {
     <div className="mt-3">
       <div className="flex justify-between text-xs mb-1.5">
         <span className="text-slate-500">{label}</span>
-        <span className="text-slate-400 font-medium">{pct.toFixed(1)}%</span>
+        <span className="text-slate-400 font-medium font-mono tabular-nums">{pct.toFixed(1)}%</span>
       </div>
       <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
         <div
@@ -243,7 +243,7 @@ export default function DashboardPage() {
               {loading ? (
                 <Skeleton className="h-9 w-20" />
               ) : (
-                <p className="text-3xl font-bold text-slate-100 tracking-tight">
+                <p className="text-3xl font-bold text-slate-100 tracking-tight font-mono tabular-nums">
                   {(stats as any)[s.key]}
                 </p>
               )}
@@ -281,13 +281,13 @@ export default function DashboardPage() {
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <div className="bg-white/3 border border-white/5 rounded-lg px-3 py-3">
                   <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-1">Active Schedules</p>
-                  <p className="text-lg font-bold text-emerald-400">
+                  <p className="text-lg font-bold text-emerald-400 font-mono tabular-nums">
                     {loading ? '—' : Math.round((rates.scheduleRate / 100) * parseInt(stats.totalSchedules || '0'))}
                   </p>
                 </div>
                 <div className="bg-white/3 border border-white/5 rounded-lg px-3 py-3">
                   <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-1">Idle Vehicles</p>
-                  <p className="text-lg font-bold text-amber-400">
+                  <p className="text-lg font-bold text-amber-400 font-mono tabular-nums">
                     {loading ? '—' : Math.max(0, parseInt(stats.totalVehicles || '0') - Math.round((rates.fleetUtil / 100) * parseInt(stats.totalVehicles || '0')))}
                   </p>
                 </div>
@@ -409,7 +409,7 @@ export default function DashboardPage() {
                             ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                             : <XCircle className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                           }
-                          <span className="text-sm text-slate-400">{r.activeSchedules}/{r.totalSchedules}</span>
+                          <span className="text-sm text-slate-400 font-mono tabular-nums">{r.activeSchedules}/{r.totalSchedules}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
