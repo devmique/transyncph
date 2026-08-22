@@ -85,19 +85,30 @@ export default function SchedulesPage() {
 
   const handleCopyDriverLink = async (scheduleId: string | undefined) => {
     if (!scheduleId) return
-    const link = `${typeof window !== 'undefined' ? window.location.origin : ''}/driver?scheduleId=${scheduleId}`
     try {
+      // The link carries a signed, 12-hour trip token. It is the driver's only
+      // credential, so it is minted server-side per schedule rather than being
+      // a guessable /driver?scheduleId=<id> URL.
+      const res = await fetch('/api/schedules/trip-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduleId }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to create driver link')
+
+      const link = `${typeof window !== 'undefined' ? window.location.origin : ''}${data.path}`
       await navigator.clipboard.writeText(link)
       setCopiedId(scheduleId)
       toast({
-        title: 'Link copied!',
-        description: 'Share this link with your driver.',
+        title: 'Driver link copied',
+        description: 'Send it to your driver. It expires in 12 hours.',
       })
       setTimeout(() => setCopiedId(null), 2000)
     } catch (e) {
       toast({
         title: 'Failed to copy',
-        description: 'Could not copy to clipboard.',
+        description: e instanceof Error ? e.message : 'Could not copy to clipboard.',
         variant: 'destructive',
       })
     }
