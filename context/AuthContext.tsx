@@ -1,7 +1,6 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation'
 
 interface OperatorInfo {
   id: string;
@@ -31,7 +30,6 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [operator, setOperator] = useState<OperatorInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter()
   // Rehydrate from /api/auth/me on mount — cookie is sent automatically
   useEffect(() => {
     fetch('/api/auth/me')
@@ -77,7 +75,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     setOperator(null);
-    router.push('/login')
+    // Hard navigation rather than router.push. A soft navigation is served by
+    // the client router, which can race the cookie deletion and get bounced
+    // back to /dashboard by the proxy. Once that happens the dashboard layout
+    // renders null with no way to recover, because its redirect effect only
+    // reruns when `operator` changes and it was already null. A full document
+    // request re-reads cookie state from scratch and cannot get stuck.
+    window.location.href = '/login';
   };
 
   return (

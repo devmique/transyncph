@@ -90,7 +90,6 @@ export default function DemoModal({ isOpen, onClose }: DemoModalProps) {
                 className="w-full h-full object-cover"
                 controls
                 preload="metadata"
-                poster="/demo-poster.jpg"
                 style={{ display: videoState === 'ready' ? 'block' : 'none' }}
                 onLoadedMetadata={() => setVideoState('ready')}
                 onCanPlay={() => setVideoState('ready')}
@@ -166,7 +165,7 @@ export default function DemoModal({ isOpen, onClose }: DemoModalProps) {
                     </div>
                   </div>
                   <p className="relative text-slate-500 text-sm font-light text-center px-6">
-                    Demo video coming soon — drop&nbsp;
+                    Demo video not found. Add&nbsp;
                     <code className="text-slate-400 bg-white/5 px-1.5 py-0.5 rounded text-xs">public/demo.mp4</code>
                     &nbsp;to enable playback.
                   </p>
@@ -178,7 +177,7 @@ export default function DemoModal({ isOpen, onClose }: DemoModalProps) {
 
         {/* Caption */}
         <p className="mt-3 text-center text-xs text-slate-600">
-          TranSync PH — Full Product Walkthrough &nbsp;·&nbsp; Press&nbsp;
+          TranSync PH product walkthrough. Press&nbsp;
           <kbd className="bg-white/5 border border-white/10 rounded px-1 py-0.5 font-mono text-[10px] text-slate-500">Esc</kbd>
           &nbsp;to close
         </p>
