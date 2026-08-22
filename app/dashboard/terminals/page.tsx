@@ -113,7 +113,7 @@ export default function TerminalsPage() {
       {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
 
       {formOpen && (
-        <div className="bg-slate-900/60 backdrop-blur-sm border border-white/8 rounded-xl p-6 mb-6">
+        <div className="bg-slate-900/60 border border-white/8 rounded-xl p-6 mb-6">
           <h2 className="text-base font-semibold text-slate-100 mb-5">{editingId ? 'Edit Terminal' : 'Create New Terminal'}</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid md:grid-cols-2 gap-4">
@@ -179,7 +179,7 @@ export default function TerminalsPage() {
       ) : (
         <div className="space-y-3">
           {terminals.map((terminal) => (
-            <div key={terminal._id} className="group bg-slate-900/60 backdrop-blur-sm border border-white/8 rounded-xl px-5 py-4 hover:border-white/12 transition">
+            <div key={terminal._id} className="group bg-slate-900/60 border border-white/8 rounded-xl px-5 py-4 hover:border-white/12 transition">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-slate-100 mb-0.5">{terminal.name}</p>

@@ -207,7 +207,7 @@ export default function SchedulesPage() {
 
       {/* ── FORM ── */}
       {formOpen && (
-        <div className="bg-slate-900/60 backdrop-blur-sm border border-white/8 rounded-xl p-6 mb-6">
+        <div className="bg-slate-900/60 border border-white/8 rounded-xl p-6 mb-6">
           <h2 className="text-base font-semibold text-slate-100 mb-5">
             {editingId ? 'Edit Schedule' : 'Create New Schedule'}
           </h2>
@@ -388,7 +388,7 @@ export default function SchedulesPage() {
           {schedules.map((schedule) => (
             <div
               key={schedule._id}
-              className="group bg-slate-900/60 backdrop-blur-sm border border-white/8 rounded-xl px-5 py-4 hover:border-white/12 transition"
+              className="group bg-slate-900/60 border border-white/8 rounded-xl px-5 py-4 hover:border-white/12 transition"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">

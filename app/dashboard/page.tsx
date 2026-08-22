@@ -16,7 +16,12 @@ const Skeleton = ({ className }: { className?: string }) => (
 )
 
 function StatBadge({ pct, label }: { pct: number; label: string }) {
-  const color = pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500'
+  // Healthy is the quiet default. Colour only appears once a number is
+  // genuinely worth looking at, so an amber bar means something rather than
+  // being the normal state of a working fleet - 75% utilisation used to render
+  // as a warning under the old 80/50 split.
+  const color =
+    pct >= 60 ? 'bg-emerald-500' : pct >= 30 ? 'bg-amber-500' : 'bg-red-500'
   return (
     <div className="mt-3">
       <div className="flex justify-between text-xs mb-1.5">
@@ -198,43 +203,15 @@ export default function DashboardPage() {
   }, [])
 
   /* ── stat card definitions ── */
+  // Counts are not states, so they get no colour. Routes are not "more blue"
+  // than terminals - hue here encoded nothing and competed with emerald/amber,
+  // which do carry meaning elsewhere on this page. The number is the
+  // information; the icon is just a signpost.
   const statCards = [
-    {
-      key: 'activeRoutes',
-      label: 'Active Routes',
-      icon: MapPin,
-      accent: 'text-blue-400',
-      bg: 'bg-blue-500/10',
-      border: 'border-blue-500/20',
-      href: '/dashboard/routes',
-    },
-    {
-      key: 'totalVehicles',
-      label: 'Total Vehicles',
-      icon: Bus,
-      accent: 'text-emerald-400',
-      bg: 'bg-emerald-500/10',
-      border: 'border-emerald-500/20',
-      href: '/dashboard/schedules',
-    },
-    {
-      key: 'terminals',
-      label: 'Terminals',
-      icon: Building2,
-      accent: 'text-violet-400',
-      bg: 'bg-violet-500/10',
-      border: 'border-violet-500/20',
-      href: '/dashboard/terminals',
-    },
-    {
-      key: 'totalSchedules',
-      label: 'Total Schedules',
-      icon: Clock,
-      accent: 'text-amber-400',
-      bg: 'bg-amber-500/10',
-      border: 'border-amber-500/20',
-      href: '/dashboard/schedules',
-    },
+    { key: 'activeRoutes',   label: 'Active Routes',   icon: MapPin,     href: '/dashboard/routes' },
+    { key: 'totalVehicles',  label: 'Total Vehicles',  icon: Bus,        href: '/dashboard/schedules' },
+    { key: 'terminals',      label: 'Terminals',       icon: Building2,  href: '/dashboard/terminals' },
+    { key: 'totalSchedules', label: 'Total Schedules', icon: Clock,      href: '/dashboard/schedules' },
   ]
 
   return (
@@ -259,7 +236,7 @@ export default function DashboardPage() {
           <Link
             key={s.key}
             href={s.href}
-            className="group bg-slate-900/60 backdrop-blur-sm border border-white/8 rounded-xl px-5 py-5 flex items-start justify-between hover:border-white/15 hover:bg-slate-900/80 transition"
+            className="group bg-slate-900/60 border border-white/8 rounded-xl px-5 py-5 flex items-start justify-between hover:border-white/15 hover:bg-slate-900/80 transition"
           >
             <div className="min-w-0">
               <p className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-2">{s.label}</p>
@@ -271,8 +248,8 @@ export default function DashboardPage() {
                 </p>
               )}
             </div>
-            <div className={`w-10 h-10 rounded-xl ${s.bg} border ${s.border} flex items-center justify-center shrink-0 ml-3`}>
-              <s.icon className={`w-4.5 h-4.5 ${s.accent}`} />
+            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 ml-3">
+              <s.icon className="w-4.5 h-4.5 text-slate-400" />
             </div>
           </Link>
         ))}
@@ -282,7 +259,7 @@ export default function DashboardPage() {
       <div className="grid md:grid-cols-2 gap-4">
 
         {/* Fleet Health */}
-        <div className="bg-slate-900/60 backdrop-blur-sm border border-white/8 rounded-xl p-5">
+        <div className="bg-slate-900/60 border border-white/8 rounded-xl p-5">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-blue-400" />
@@ -320,10 +297,10 @@ export default function DashboardPage() {
         </div>
 
         {/* Recent Schedules */}
-        <div className="bg-slate-900/60 backdrop-blur-sm border border-white/8 rounded-xl p-5">
+        <div className="bg-slate-900/60 border border-white/8 rounded-xl p-5">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-violet-400" />
+              <Clock className="w-4 h-4 text-slate-400" />
               <h2 className="text-sm font-semibold text-slate-100">Recent Schedules</h2>
             </div>
             <Link
@@ -372,7 +349,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── ROUTES TABLE ── */}
-      <div className="bg-slate-900/60 backdrop-blur-sm border border-white/8 rounded-xl">
+      <div className="bg-slate-900/60 border border-white/8 rounded-xl">
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/5">
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-blue-400" />
@@ -459,7 +436,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── RECENT ACTIVITY ── */}
-      <div className="bg-slate-900/60 backdrop-blur-sm border border-white/8 rounded-xl p-5">
+      <div className="bg-slate-900/60 border border-white/8 rounded-xl p-5">
         <div className="flex items-center gap-2 mb-5">
           <Activity className="w-4 h-4 text-slate-400" />
           <h2 className="text-sm font-semibold text-slate-100">Recent Activity</h2>

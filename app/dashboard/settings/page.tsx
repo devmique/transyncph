@@ -73,7 +73,7 @@ export default function SettingsPage() {
     router.push('/login')
   }
 
-  const sectionCls = 'bg-slate-900/60 backdrop-blur-sm border border-white/8 rounded-xl p-6'
+  const sectionCls = 'bg-slate-900/60 border border-white/8 rounded-xl p-6'
   const rowLabelCls = 'text-xs font-medium tracking-wider uppercase text-slate-500 mb-1'
   const rowValueCls = 'text-sm text-slate-200'
 
