@@ -316,6 +316,7 @@ export default function MapPage() {
                         >
                           <button
                             onClick={() => route._id && toggleExpand(route._id)}
+                            aria-expanded={isExpanded}
                             className="cursor-pointer w-full text-left px-4 py-3"
                           >
                             <div className="flex items-start justify-between gap-3">
@@ -357,7 +358,7 @@ export default function MapPage() {
                             </div>
                           </button>
 
-                          {isExpanded && (
+                          <div className="collapse-panel" data-open={isExpanded} inert={!isExpanded}>
                             <div className="border-t border-white/5 px-4 pb-3 pt-2 space-y-1.5">
                               <p className="text-[10px] font-medium tracking-wider uppercase text-slate-600 mb-2">
                                 Available Trips
@@ -389,7 +390,7 @@ export default function MapPage() {
                                 ))
                               )}
                             </div>
-                          )}
+                          </div>
                         </div>
                       )
                     })}

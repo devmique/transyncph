@@ -142,3 +142,23 @@
     }
   }
 }
+
+/* Expanding panels (route -> trips on /map). `interpolate-size` lets the
+   browser interpolate height:auto natively, so the panel eases open at its
+   real content height with no JS measurement. Browsers without it snap open,
+   which is exactly the old behaviour. */
+@supports (interpolate-size: allow-keywords) {
+  :root { interpolate-size: allow-keywords; }
+}
+
+.collapse-panel {
+  height: auto;
+  overflow: hidden;
+  transition: height 300ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.collapse-panel[data-open='false'] { height: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .collapse-panel { transition: none; }
+}
