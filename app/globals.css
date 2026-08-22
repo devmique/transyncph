@@ -124,3 +124,21 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Scroll reveal. Native scroll-driven animation, no JS and no animation library.
+   The hidden start state lives inside @supports so browsers without
+   animation-timeline render the content normally instead of blank. */
+@keyframes reveal-in {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .reveal {
+      animation: reveal-in both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 30%;
+    }
+  }
+}
