@@ -79,7 +79,7 @@ export default function DashboardLayout({
         </div>
         <div className="bg-white/5 border border-white/8 rounded-lg px-3 py-2">
           <p className="text-xs text-slate-500 mb-0.5">Operator</p>
-          <p className="text-sm font-medium text-slate-200 truncate">{operator.companyName}</p>
+          <p className="text-sm font-medium text-slate-100 truncate">{operator.companyName}</p>
         </div>
       </div>
 
@@ -142,7 +142,7 @@ export default function DashboardLayout({
         {/* Close button */}
         <button
           onClick={() => setMobileOpen(false)}
-          className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-white/5 transition"
+          className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-500 hover:text-slate-100 hover:bg-white/5 transition"
         >
           <X className="w-4 h-4" />
         </button>
@@ -157,7 +157,7 @@ export default function DashboardLayout({
           {/* Hamburger — mobile only */}
           <button
             onClick={() => setMobileOpen(true)}
-            className="md:hidden p-2 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-white/5 transition"
+            className="md:hidden p-2 rounded-lg text-slate-500 hover:text-slate-100 hover:bg-white/5 transition"
             aria-label="Open menu"
           >
             <Menu className="w-5 h-5" />
@@ -175,7 +175,7 @@ export default function DashboardLayout({
             </span>
           </div>
 
-          <p className="text-xs font-mono text-slate-600 ml-auto md:ml-0">
+          <p className="text-xs font-mono text-slate-500 ml-auto md:ml-0">
             {navigation.find((n) => n.href === pathname)?.name ?? 'Dashboard'}
           </p>
         </header>
@@ -191,17 +191,17 @@ export default function DashboardLayout({
       <AlertDialog open={confirmLogout} onOpenChange={setConfirmLogout}>
         <AlertDialogContent className="bg-slate-900 border-white/10 text-slate-100 sm:max-w-sm">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-base font-semibold text-slate-100">
+            <AlertDialogTitle className="text-lg font-semibold text-slate-100">
               Log out?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400 text-sm leading-relaxed">
               You will be signed out of{' '}
-              <span className="text-slate-200 font-medium">{operator.companyName}</span>{' '}
+              <span className="text-slate-100 font-medium">{operator.companyName}</span>{' '}
               and returned to the login page.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="cursor-pointer bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-slate-100">
+            <AlertDialogCancel className="cursor-pointer bg-white/5 border-white/10 text-slate-100 hover:bg-white/10 hover:text-slate-100">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction

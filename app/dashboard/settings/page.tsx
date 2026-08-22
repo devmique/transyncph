@@ -73,9 +73,9 @@ export default function SettingsPage() {
     router.push('/login')
   }
 
-  const sectionCls = 'bg-slate-900/60 backdrop-blur-sm border border-white/8 rounded-xl p-6'
+  const sectionCls = 'bg-slate-900/60 border border-white/8 rounded-xl p-6'
   const rowLabelCls = 'text-xs font-medium tracking-wider uppercase text-slate-500 mb-1'
-  const rowValueCls = 'text-sm text-slate-200'
+  const rowValueCls = 'text-sm text-slate-100'
 
   const profileFields: [string, string | undefined][] = [
     ['Full Name',     profile?.name],
@@ -121,7 +121,7 @@ export default function SettingsPage() {
             <Button
               variant="outline"
               onClick={() => setModal('editProfile')}
-              className="border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-slate-100 cursor-pointer"
+              className="border-white/10 bg-white/5 text-slate-100 hover:bg-white/10 hover:text-slate-100 cursor-pointer"
             >
               Edit Profile
             </Button>
@@ -173,7 +173,7 @@ export default function SettingsPage() {
               <Button
                 variant="outline"
                 onClick={() => setModal('changePassword')}
-                className="w-full justify-start border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-slate-100 cursor-pointer"
+                className="w-full justify-start border-white/10 bg-white/5 text-slate-100 hover:bg-white/10 hover:text-slate-100 cursor-pointer"
               >
                 Change Password
               </Button>

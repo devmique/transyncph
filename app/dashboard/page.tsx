@@ -16,12 +16,17 @@ const Skeleton = ({ className }: { className?: string }) => (
 )
 
 function StatBadge({ pct, label }: { pct: number; label: string }) {
-  const color = pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-red-500'
+  // Healthy is the quiet default. Colour only appears once a number is
+  // genuinely worth looking at, so an amber bar means something rather than
+  // being the normal state of a working fleet - 75% utilisation used to render
+  // as a warning under the old 80/50 split.
+  const color =
+    pct >= 60 ? 'bg-emerald-500' : pct >= 30 ? 'bg-amber-500' : 'bg-red-500'
   return (
     <div className="mt-3">
       <div className="flex justify-between text-xs mb-1.5">
         <span className="text-slate-500">{label}</span>
-        <span className="text-slate-400 font-medium">{pct.toFixed(1)}%</span>
+        <span className="text-slate-400 font-medium font-mono tabular-nums">{pct.toFixed(1)}%</span>
       </div>
       <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
         <div
@@ -198,43 +203,15 @@ export default function DashboardPage() {
   }, [])
 
   /* ── stat card definitions ── */
+  // Counts are not states, so they get no colour. Routes are not "more blue"
+  // than terminals - hue here encoded nothing and competed with emerald/amber,
+  // which do carry meaning elsewhere on this page. The number is the
+  // information; the icon is just a signpost.
   const statCards = [
-    {
-      key: 'activeRoutes',
-      label: 'Active Routes',
-      icon: MapPin,
-      accent: 'text-blue-400',
-      bg: 'bg-blue-500/10',
-      border: 'border-blue-500/20',
-      href: '/dashboard/routes',
-    },
-    {
-      key: 'totalVehicles',
-      label: 'Total Vehicles',
-      icon: Bus,
-      accent: 'text-emerald-400',
-      bg: 'bg-emerald-500/10',
-      border: 'border-emerald-500/20',
-      href: '/dashboard/schedules',
-    },
-    {
-      key: 'terminals',
-      label: 'Terminals',
-      icon: Building2,
-      accent: 'text-violet-400',
-      bg: 'bg-violet-500/10',
-      border: 'border-violet-500/20',
-      href: '/dashboard/terminals',
-    },
-    {
-      key: 'totalSchedules',
-      label: 'Total Schedules',
-      icon: Clock,
-      accent: 'text-amber-400',
-      bg: 'bg-amber-500/10',
-      border: 'border-amber-500/20',
-      href: '/dashboard/schedules',
-    },
+    { key: 'activeRoutes',   label: 'Active Routes',   icon: MapPin,     href: '/dashboard/routes' },
+    { key: 'totalVehicles',  label: 'Total Vehicles',  icon: Bus,        href: '/dashboard/schedules' },
+    { key: 'terminals',      label: 'Terminals',       icon: Building2,  href: '/dashboard/terminals' },
+    { key: 'totalSchedules', label: 'Total Schedules', icon: Clock,      href: '/dashboard/schedules' },
   ]
 
   return (
@@ -242,7 +219,7 @@ export default function DashboardPage() {
 
       {/* ── Heading ── */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-100">Overview</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-slate-100">Overview</h1>
         <p className="text-sm text-slate-500 mt-1">Here&apos;s a live summary of your bus operations.</p>
       </div>
 
@@ -259,20 +236,20 @@ export default function DashboardPage() {
           <Link
             key={s.key}
             href={s.href}
-            className="group bg-slate-900/60 backdrop-blur-sm border border-white/8 rounded-xl px-5 py-5 flex items-start justify-between hover:border-white/15 hover:bg-slate-900/80 transition"
+            className="group bg-slate-900/60 border border-white/8 rounded-xl px-5 py-5 flex items-start justify-between hover:border-white/15 hover:bg-slate-900/80 transition"
           >
             <div className="min-w-0">
               <p className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-2">{s.label}</p>
               {loading ? (
                 <Skeleton className="h-9 w-20" />
               ) : (
-                <p className="text-3xl font-bold text-slate-100 tracking-tight">
+                <p className="text-3xl font-bold text-slate-100 tracking-tight font-mono tabular-nums">
                   {(stats as any)[s.key]}
                 </p>
               )}
             </div>
-            <div className={`w-10 h-10 rounded-xl ${s.bg} border ${s.border} flex items-center justify-center shrink-0 ml-3`}>
-              <s.icon className={`w-4.5 h-4.5 ${s.accent}`} />
+            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 ml-3">
+              <s.icon className="w-4.5 h-4.5 text-slate-400" />
             </div>
           </Link>
         ))}
@@ -282,13 +259,13 @@ export default function DashboardPage() {
       <div className="grid md:grid-cols-2 gap-4">
 
         {/* Fleet Health */}
-        <div className="bg-slate-900/60 backdrop-blur-sm border border-white/8 rounded-xl p-5">
+        <div className="bg-slate-900/60 border border-white/8 rounded-xl p-5">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-blue-400" />
               <h2 className="text-sm font-semibold text-slate-100">Fleet Health</h2>
             </div>
-            <span className="text-xs text-slate-600 font-mono">live</span>
+            <span className="text-xs text-slate-500 font-mono">live</span>
           </div>
 
           {loading ? (
@@ -303,14 +280,14 @@ export default function DashboardPage() {
 
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <div className="bg-white/3 border border-white/5 rounded-lg px-3 py-3">
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Active Schedules</p>
-                  <p className="text-xl font-bold text-emerald-400">
+                  <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-1">Active Schedules</p>
+                  <p className="text-lg font-bold text-emerald-400 font-mono tabular-nums">
                     {loading ? '—' : Math.round((rates.scheduleRate / 100) * parseInt(stats.totalSchedules || '0'))}
                   </p>
                 </div>
                 <div className="bg-white/3 border border-white/5 rounded-lg px-3 py-3">
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Idle Vehicles</p>
-                  <p className="text-xl font-bold text-amber-400">
+                  <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-1">Idle Vehicles</p>
+                  <p className="text-lg font-bold text-amber-400 font-mono tabular-nums">
                     {loading ? '—' : Math.max(0, parseInt(stats.totalVehicles || '0') - Math.round((rates.fleetUtil / 100) * parseInt(stats.totalVehicles || '0')))}
                   </p>
                 </div>
@@ -320,10 +297,10 @@ export default function DashboardPage() {
         </div>
 
         {/* Recent Schedules */}
-        <div className="bg-slate-900/60 backdrop-blur-sm border border-white/8 rounded-xl p-5">
+        <div className="bg-slate-900/60 border border-white/8 rounded-xl p-5">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-violet-400" />
+              <Clock className="w-4 h-4 text-slate-400" />
               <h2 className="text-sm font-semibold text-slate-100">Recent Schedules</h2>
             </div>
             <Link
@@ -353,10 +330,10 @@ export default function DashboardPage() {
                     className="flex items-center justify-between bg-white/3 border border-white/5 rounded-lg px-3 py-2.5 gap-2"
                   >
                     <div className="min-w-0">
-                      <p className="text-xs font-medium text-slate-200 truncate">Route {routeLabel}</p>
+                      <p className="text-xs font-medium text-slate-100 truncate">Route {routeLabel}</p>
                       <p className="text-[11px] text-slate-500">{dep} → {arr}</p>
                     </div>
-                    <span className={`shrink-0 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
+                    <span className={`shrink-0 text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
                       active
                         ? 'bg-emerald-500/15 text-emerald-400'
                         : 'bg-slate-700/60 text-slate-500'
@@ -372,7 +349,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── ROUTES TABLE ── */}
-      <div className="bg-slate-900/60 backdrop-blur-sm border border-white/8 rounded-xl">
+      <div className="bg-slate-900/60 border border-white/8 rounded-xl">
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/5">
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-blue-400" />
@@ -421,7 +398,7 @@ export default function DashboardPage() {
                   return (
                     <tr key={r.id} className="border-b border-white/5 last:border-0 hover:bg-white/2 transition">
                       <td className="px-5 py-3">
-                        <span className="font-mono text-sm font-semibold text-slate-200">{r.routeNumber}</span>
+                        <span className="font-mono text-sm font-semibold text-slate-100">{r.routeNumber}</span>
                       </td>
                       <td className="px-4 py-3 hidden sm:table-cell">
                         <span className="text-sm text-slate-400">{r.startPoint} → {r.endPoint}</span>
@@ -430,9 +407,9 @@ export default function DashboardPage() {
                         <div className="flex items-center gap-1.5">
                           {hasActive
                             ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                            : <XCircle className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                            : <XCircle className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                           }
-                          <span className="text-sm text-slate-400">{r.activeSchedules}/{r.totalSchedules}</span>
+                          <span className="text-sm text-slate-400 font-mono tabular-nums">{r.activeSchedules}/{r.totalSchedules}</span>
                         </div>
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
@@ -441,7 +418,7 @@ export default function DashboardPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
+                        <span className={`inline-flex items-center text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
                           hasActive
                             ? 'bg-emerald-500/15 text-emerald-400'
                             : 'bg-slate-700/60 text-slate-500'
@@ -459,7 +436,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── RECENT ACTIVITY ── */}
-      <div className="bg-slate-900/60 backdrop-blur-sm border border-white/8 rounded-xl p-5">
+      <div className="bg-slate-900/60 border border-white/8 rounded-xl p-5">
         <div className="flex items-center gap-2 mb-5">
           <Activity className="w-4 h-4 text-slate-400" />
           <h2 className="text-sm font-semibold text-slate-100">Recent Activity</h2>
@@ -488,9 +465,9 @@ export default function DashboardPage() {
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-1.5 h-1.5 rounded-full bg-blue-500/60 shrink-0" />
-                  <p className="text-sm text-slate-300 truncate">{item.label}</p>
+                  <p className="text-sm text-slate-100 truncate">{item.label}</p>
                 </div>
-                <p className="text-xs text-slate-600 shrink-0 ml-4">{item.time}</p>
+                <p className="text-xs text-slate-500 shrink-0 ml-4">{item.time}</p>
               </div>
             ))}
           </div>
