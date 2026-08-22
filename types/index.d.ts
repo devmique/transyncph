@@ -45,6 +45,10 @@ export interface OperatorProfile {
     vehicleNumber: string
     routeNumber?: string
     status: 'active' | 'inactive'
+    /** Days this trip runs, 0 = Sunday (matches JS getDay()). Optional because
+     *  schedules created before this field existed have no value; those are
+     *  treated as running every day. */
+    daysOfWeek?: number[]
     route?: {                      
       routeNumber: string
       startPoint: string
