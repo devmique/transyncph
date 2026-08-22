@@ -1,10 +1,18 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, Building2, Pencil } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import { Plus, Trash2, Building2, Pencil, Crosshair, MapPin } from 'lucide-react'
 import { Terminal } from '@/types'
 import { Button } from '@/components/ui/button'
 import InputField from '@/components/ui/InputField'
+
+// Leaflet touches `window` at import time, so it cannot be server-rendered.
+// Same treatment as the public map in app/map/page.tsx.
+const CoordinatePicker = dynamic(() => import('@/components/map/CoordinatePicker'), {
+  ssr: false,
+  loading: () => <div className="w-full h-64 rounded-lg bg-white/5 animate-pulse" />,
+})
 
 // Coordinates are held as strings while editing so the fields can start truly
 // empty. Holding them as numbers meant the form defaulted to 0/0, which looked
@@ -28,6 +36,7 @@ export default function TerminalsPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   // null = the form is creating; an id = the form is editing that terminal
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [locating, setLocating] = useState(false)
 
   const openCreate = () => {
     setEditingId(null)
@@ -51,6 +60,40 @@ export default function TerminalsPage() {
     setFormOpen(false)
     setEditingId(null)
     setFormData(empty)
+    setLocating(false)
+  }
+
+  // Coordinates are stored as strings for the inputs; the map needs numbers.
+  // A half-typed value like "14." parses to NaN, so the marker simply is not
+  // shown until the value is a real number.
+  const parsedLat = Number.isFinite(Number(formData.lat)) && formData.lat.trim() !== ''
+    ? Number(formData.lat) : null
+  const parsedLng = Number.isFinite(Number(formData.lng)) && formData.lng.trim() !== ''
+    ? Number(formData.lng) : null
+
+  // 6 decimal places is ~0.1m - far more precision than a bus terminal needs,
+  // and it keeps the readout from becoming unreadable.
+  const handlePick = (lat: number, lng: number) => {
+    setFormData((prev) => ({ ...prev, lat: lat.toFixed(6), lng: lng.toFixed(6) }))
+  }
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation) {
+      setError('This browser cannot report your location.')
+      return
+    }
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        handlePick(pos.coords.latitude, pos.coords.longitude)
+        setLocating(false)
+      },
+      () => {
+        setError('Could not get your location. Pick the spot on the map instead.')
+        setLocating(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
   }
 
   useEffect(() => { fetchTerminals() }, [])
@@ -163,25 +206,63 @@ export default function TerminalsPage() {
                 required
               />
             </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              <InputField
-                label="Latitude"
-                name="lat"
-                type="number"
-                placeholder="e.g., 14.5951"
-                value={formData.lat}
-                onChange={(e) => setFormData({ ...formData, lat: e.target.value })}
-                required
-              />
-              <InputField
-                label="Longitude"
-                name="lng"
-                type="number"
-                placeholder="e.g., 121.0273"
-                value={formData.lng}
-                onChange={(e) => setFormData({ ...formData, lng: e.target.value })}
-                required
-              />
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <label className="block text-xs font-medium tracking-wider uppercase text-slate-400">
+                  Location on map
+                </label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={useMyLocation}
+                  disabled={locating}
+                  className="h-7 px-2.5 gap-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-medium cursor-pointer disabled:opacity-50"
+                >
+                  <Crosshair className="w-3.5 h-3.5" />
+                  {locating ? 'Locating…' : 'Use my location'}
+                </Button>
+              </div>
+
+              <CoordinatePicker lat={parsedLat} lng={parsedLng} onPick={handlePick} />
+
+              <div className="flex items-center gap-2 text-xs">
+                <MapPin className="w-3.5 h-3.5 text-slate-600 shrink-0" />
+                {parsedLat !== null && parsedLng !== null ? (
+                  <span className="font-mono text-slate-400">
+                    {parsedLat.toFixed(6)}, {parsedLng.toFixed(6)}
+                  </span>
+                ) : (
+                  <span className="text-slate-600">
+                    Click the map to place this terminal, then drag the pin to adjust.
+                  </span>
+                )}
+              </div>
+
+              {/* Kept editable for pasting exact coordinates, but they are now a
+                  secondary path rather than the only way in. */}
+              <details className="pt-1">
+                <summary className="text-xs text-slate-600 cursor-pointer hover:text-slate-400 transition select-none">
+                  Enter coordinates manually
+                </summary>
+                <div className="grid md:grid-cols-2 gap-4 pt-3">
+                  <InputField
+                    label="Latitude"
+                    name="lat"
+                    type="number"
+                    placeholder="e.g., 14.5951"
+                    value={formData.lat}
+                    onChange={(e) => setFormData({ ...formData, lat: e.target.value })}
+                  />
+                  <InputField
+                    label="Longitude"
+                    name="lng"
+                    type="number"
+                    placeholder="e.g., 121.0273"
+                    value={formData.lng}
+                    onChange={(e) => setFormData({ ...formData, lng: e.target.value })}
+                  />
+                </div>
+              </details>
             </div>
             <div className="flex gap-2 pt-1">
               <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold h-9 px-4 cursor-pointer">
