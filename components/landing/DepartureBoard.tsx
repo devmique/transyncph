@@ -45,10 +45,14 @@ function toMinutes(value: unknown): number | null {
   return h * 60 + m
 }
 
+/** 12-hour with AM/PM, matching to12Hour elsewhere in the app. A bare 24-hour
+ *  "01:01" reads as ambiguous on a board a commuter glances at once. */
 function clockLabel(totalMinutes: number): string {
   const h = Math.floor(totalMinutes / 60)
   const m = totalMinutes % 60
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+  const period = h >= 12 ? 'PM' : 'AM'
+  const h12 = h % 12 || 12
+  return `${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`
 }
 
 export default function DepartureBoard() {
@@ -159,7 +163,7 @@ export default function DepartureBoard() {
       </div>
 
       {/* Column rule */}
-      <div className="hidden sm:grid grid-cols-[3.5rem_1fr_4rem_4.5rem] gap-3 px-5 py-2 border-b border-white/5 text-[10px] font-mono tracking-widest uppercase text-slate-600">
+      <div className="hidden sm:grid grid-cols-[3.5rem_1fr_5.5rem_4.5rem] gap-3 px-5 py-2 border-b border-white/5 text-[10px] font-mono tracking-widest uppercase text-slate-600">
         <span>Route</span>
         <span>Service</span>
         <span className="text-right">Departs</span>
@@ -190,7 +194,7 @@ export default function DepartureBoard() {
                 key={`${trip.id}-${i}`}
                 /* flap-in: each row settles a beat after the one above, the way
                    a real board cascades when it updates. */
-                className="flap-row grid grid-cols-[3.5rem_1fr_4.5rem] sm:grid-cols-[3.5rem_1fr_4rem_4.5rem] gap-3 items-center px-4 sm:px-5 py-3.5"
+                className="flap-row grid grid-cols-[3.5rem_1fr_5.5rem] sm:grid-cols-[3.5rem_1fr_5.5rem_4.5rem] gap-3 items-center px-4 sm:px-5 py-3.5"
                 style={{ '--i': i } as React.CSSProperties}
               >
                 <span className="font-mono text-sm font-bold text-blue-400 tabular-nums">
