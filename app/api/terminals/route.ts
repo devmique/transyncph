@@ -8,8 +8,13 @@ import { getPayload } from '@/lib/auth'
 const terminalSchema = z.object({
   name: z.string().min(1).max(150),
   location: z.string().min(1).max(200),
-  lat: z.number(),
-  lng: z.number(),
+  // Range-checked so a mistyped coordinate cannot be stored. These feed the
+  // public map's terminal markers and the route polylines drawn between them,
+  // so a bad value is visible to commuters rather than failing quietly.
+  lat: z.number().min(-90, 'Latitude must be between -90 and 90')
+                 .max(90, 'Latitude must be between -90 and 90'),
+  lng: z.number().min(-180, 'Longitude must be between -180 and 180')
+                 .max(180, 'Longitude must be between -180 and 180'),
   facilities: z.array(z.string()).optional().default([]),
 })
 

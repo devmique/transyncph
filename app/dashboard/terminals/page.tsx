@@ -6,14 +6,25 @@ import { Terminal } from '@/types'
 import { Button } from '@/components/ui/button'
 import InputField from '@/components/ui/InputField'
 
-const empty: Terminal = { name: '', location: '', lat: 0, lng: 0, facilities: [] }
+// Coordinates are held as strings while editing so the fields can start truly
+// empty. Holding them as numbers meant the form defaulted to 0/0, which looked
+// filled, satisfied `required`, and let a terminal be saved at Null Island.
+type TerminalForm = {
+  name: string
+  location: string
+  lat: string
+  lng: string
+  facilities: string[]
+}
+
+const empty: TerminalForm = { name: '', location: '', lat: '', lng: '', facilities: [] }
 
 export default function TerminalsPage() {
   const [terminals, setTerminals] = useState<Terminal[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [formOpen, setFormOpen] = useState(false)
-  const [formData, setFormData] = useState<Terminal>(empty)
+  const [formData, setFormData] = useState<TerminalForm>(empty)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   // null = the form is creating; an id = the form is editing that terminal
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -29,8 +40,8 @@ export default function TerminalsPage() {
     setFormData({
       name: terminal.name,
       location: terminal.location,
-      lat: terminal.lat,
-      lng: terminal.lng,
+      lat: String(terminal.lat ?? ''),
+      lng: String(terminal.lng ?? ''),
       facilities: terminal.facilities ?? [],
     })
     setFormOpen(true)
@@ -59,10 +70,26 @@ export default function TerminalsPage() {
     e.preventDefault()
     const cleanedName = formData.name.trim()
     const cleanedLocation = formData.location.trim()
-    const hasValidLat = Number.isFinite(formData.lat)
-    const hasValidLng = Number.isFinite(formData.lng)
 
-    if (!cleanedName || !cleanedLocation || !hasValidLat || !hasValidLng) return
+    // Empty string parses to NaN rather than 0, so a blank field is caught here
+    // instead of silently becoming a coordinate.
+    const lat = Number(formData.lat)
+    const lng = Number(formData.lng)
+
+    if (!cleanedName || !cleanedLocation) return
+    if (formData.lat.trim() === '' || formData.lng.trim() === '' ||
+        !Number.isFinite(lat) || !Number.isFinite(lng)) {
+      setError('Pick a location on the map, or enter valid coordinates.')
+      return
+    }
+    if (lat < -90 || lat > 90) {
+      setError('Latitude must be between -90 and 90.')
+      return
+    }
+    if (lng < -180 || lng > 180) {
+      setError('Longitude must be between -180 and 180.')
+      return
+    }
 
     try {
       setError('')
@@ -74,6 +101,8 @@ export default function TerminalsPage() {
           ...(editingId ? { id: editingId } : {}),
           name: cleanedName,
           location: cleanedLocation,
+          lat,
+          lng,
         }),
       })
       const data = await res.json()
@@ -140,8 +169,8 @@ export default function TerminalsPage() {
                 name="lat"
                 type="number"
                 placeholder="e.g., 14.5951"
-                value={String(formData.lat)}
-                onChange={(e) => setFormData({ ...formData, lat: parseFloat(e.target.value) })}
+                value={formData.lat}
+                onChange={(e) => setFormData({ ...formData, lat: e.target.value })}
                 required
               />
               <InputField
@@ -149,8 +178,8 @@ export default function TerminalsPage() {
                 name="lng"
                 type="number"
                 placeholder="e.g., 121.0273"
-                value={String(formData.lng)}
-                onChange={(e) => setFormData({ ...formData, lng: parseFloat(e.target.value) })}
+                value={formData.lng}
+                onChange={(e) => setFormData({ ...formData, lng: e.target.value })}
                 required
               />
             </div>
