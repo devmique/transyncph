@@ -12,6 +12,10 @@ const announcementSchema = z.object({
   affectedRoutes: z.array(z.string().min(1).max(50)).min(1).max(50),
 })
 
+const announcementUpdateSchema = announcementSchema.extend({
+  id: z.string().refine(v => ObjectId.isValid(v), 'Invalid announcement ID'),
+})
+
 export async function GET(request: NextRequest) {
   const payload = getPayload(request)
   if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -50,6 +54,36 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ id: result.insertedId, ...parsed.data }, { status: 201 })
   } catch {
     return NextResponse.json({ error: 'Failed to create announcement' }, { status: 500 })
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  const payload = getPayload(request)
+  if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  try {
+    const body = await request.json()
+    const parsed = announcementUpdateSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 })
+    }
+
+    const { id, ...announcementData } = parsed.data
+    const db = await getDatabase()
+
+    // operatorId stays in the filter so one operator can never edit another's announcement
+    const result = await db.collection('announcements').updateOne(
+      { _id: new ObjectId(id), operatorId: payload.operatorId },
+      { $set: { ...announcementData, updatedAt: new Date() } }
+    )
+
+    if (result.matchedCount === 0) {
+      return NextResponse.json({ error: 'Announcement not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ id, ...announcementData })
+  } catch {
+    return NextResponse.json({ error: 'Failed to update announcement' }, { status: 500 })
   }
 }
 

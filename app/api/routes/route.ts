@@ -14,6 +14,10 @@ const routeSchema = z.object({
   endTerminalId: z.string().refine(v => ObjectId.isValid(v), 'Invalid end terminal ID'),
 })
 
+const routeUpdateSchema = routeSchema.extend({
+  id: z.string().refine(v => ObjectId.isValid(v), 'Invalid route ID'),
+})
+
 export async function GET(request: NextRequest) {
   try {
     const payload = getPayload(request)
@@ -93,6 +97,41 @@ export async function POST(request: NextRequest) {
     )
   }
 }
+export async function PUT(request: NextRequest) {
+  try {
+    const payload = getPayload(request)
+    if (!payload) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const body = await request.json()
+    const parsed = routeUpdateSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 })
+    }
+
+    const { id, ...routeData } = parsed.data
+    const db = await getDatabase()
+
+    // operatorId stays in the filter so one operator can never edit another's route
+    const result = await db.collection('routes').updateOne(
+      { _id: new ObjectId(id), operatorId: payload.operatorId },
+      { $set: { ...routeData, updatedAt: new Date() } }
+    )
+
+    if (result.matchedCount === 0) {
+      return NextResponse.json({ error: 'Route not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ id, ...routeData })
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to update route' },
+      { status: 500 }
+    )
+  }
+}
+
 export async function DELETE(request: NextRequest) {
   try {
     const payload = getPayload(request)
@@ -103,6 +142,7 @@ export async function DELETE(request: NextRequest) {
     if (!id || !ObjectId.isValid(id)) return NextResponse.json({ error: 'Invalid ID' }, { status: 400 })
 
     const db = await getDatabase()
+
     await db.collection('routes').deleteOne({
       _id: new ObjectId(id),
       operatorId: payload.operatorId,
