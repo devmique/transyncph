@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
       await resend.emails.send({
         from: process.env.RESEND_FROM_EMAIL ?? 'onboarding@resend.dev',
         to: user.email,
-        subject: 'Reset your RouteSync PH password',
+        subject: 'Reset your TranSync PH password',
         html: `
           <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#0f172a">
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:32px">
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
             </div>
             <h1 style="font-size:22px;font-weight:700;margin:0 0 8px">Reset your password</h1>
             <p style="font-size:14px;color:#64748b;margin:0 0 24px;line-height:1.6">
-              We received a request to reset the password for your RouteSync PH account.
+              We received a request to reset the password for your TranSync PH account.
               Click the button below — this link expires in <strong>1 hour</strong>.
             </p>
             <a href="${resetUrl}"
