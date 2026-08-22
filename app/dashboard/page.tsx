@@ -1,41 +1,72 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import {
-  Bus, MapPin, TrendingUp, Building2, Clock,
+  MapPin, Building2, Clock, Radio,
   ArrowRight, Activity, CheckCircle2, XCircle,
   AlertCircle, ChevronRight,
 } from 'lucide-react'
-import { safeDateToMs, formatPHPCompact, to12Hour } from '@/utils/format'
-import { AnyDoc } from '@/types'
 
-/* ─── tiny helpers ─── */
+import { AnyDoc, LiveBus } from '@/types'
+import { useAuth } from '@/context/AuthContext'
+import { getSocket } from '@/lib/socket'
+import {
+  ChartCard, ServiceCurve, WeeklyCoverage, FleetDonut, RouteLoadBars,
+  RUNNING, IDLE, OFF,
+  type HourBucket, type DayBucket, type FleetSlice, type RouteLoad,
+} from '@/components/dashboard/charts'
+
+/* ─── helpers ─────────────────────────────────────────────────────────────── */
+
 const Skeleton = ({ className }: { className?: string }) => (
   <div className={`bg-white/5 rounded animate-pulse ${className ?? ''}`} />
 )
 
-function StatBadge({ pct, label }: { pct: number; label: string }) {
-  // Healthy is the quiet default. Colour only appears once a number is
-  // genuinely worth looking at, so an amber bar means something rather than
-  // being the normal state of a working fleet - 75% utilisation used to render
-  // as a warning under the old 80/50 split.
-  const color =
-    pct >= 60 ? 'bg-emerald-500' : pct >= 30 ? 'bg-amber-500' : 'bg-red-500'
-  return (
-    <div className="mt-3">
-      <div className="flex justify-between text-xs mb-1.5">
-        <span className="text-slate-500">{label}</span>
-        <span className="text-slate-400 font-medium font-mono tabular-nums">{pct.toFixed(1)}%</span>
-      </div>
-      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-700 ${color}`}
-          style={{ width: `${Math.min(pct, 100)}%` }}
-        />
-      </div>
-    </div>
-  )
+const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+/** Clock time to minutes since midnight, or null if it is not a clock time.
+ *  Accepts both shapes the database holds: the schedule form saves display
+ *  strings ("10:00 AM") via to12Hour, while older rows and the raw <input>
+ *  value are 24-hour ("10:00"). */
+function toMinutes(value: unknown): number | null {
+  const match = String(value ?? '').trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i)
+  if (!match) return null
+
+  let h = parseInt(match[1], 10)
+  const m = parseInt(match[2], 10)
+  const period = match[3]?.toUpperCase()
+
+  if (period === 'PM' && h !== 12) h += 12
+  if (period === 'AM' && h === 12) h = 0
+  if (h < 0 || h > 23 || m < 0 || m > 59) return null
+
+  return h * 60 + m
+}
+
+/** Format back out of minutes, so display never depends on how the row was
+ *  stored. Passing a "10:00 AM" row through to12Hour would yield "10:00 AM AM". */
+function clockLabel(totalMinutes: number): string {
+  const h = Math.floor(totalMinutes / 60)
+  const m = totalMinutes % 60
+  const period = h >= 12 ? 'PM' : 'AM'
+  return `${String(h % 12 || 12).padStart(2, '0')}:${String(m).padStart(2, '0')} ${period}`
+}
+
+/** 0 becomes "12a", 13 becomes "1p". Short enough to fit 24 ticks on a phone. */
+function hourLabel(h: number): string {
+  if (h === 0) return '12a'
+  if (h < 12) return `${h}a`
+  if (h === 12) return '12p'
+  return `${h - 12}p`
+}
+
+/** A schedule with no daysOfWeek predates the field and is treated as daily,
+ *  matching what the public map does in app/api/public/routes/route.ts. */
+function runsOn(schedule: AnyDoc, weekday: number): boolean {
+  const days = schedule.daysOfWeek
+  if (!Array.isArray(days) || days.length === 0) return true
+  return days.includes(weekday)
 }
 
 type RouteRow = {
@@ -48,25 +79,55 @@ type RouteRow = {
   vehicles: string[]
 }
 
+/* ─── page ────────────────────────────────────────────────────────────────── */
+
 export default function DashboardPage() {
+  const { operator } = useAuth()
+
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const [stats, setStats] = useState({
-    activeRoutes: '—',
-    totalVehicles: '—',
-    terminals: '—',
-    totalSchedules: '—',
-  })
+  const [schedules, setSchedules] = useState<AnyDoc[]>([])
+  const [routeDocs, setRouteDocs] = useState<AnyDoc[]>([])
+  const [terminals, setTerminals] = useState<AnyDoc[]>([])
+  const [liveBuses, setLiveBuses] = useState<LiveBus[]>([])
 
-  const [rates, setRates] = useState({
-    scheduleRate: 0,
-    fleetUtil: 0,
-  })
+  // Null until mounted so the server and the first client render agree; a clock
+  // rendered during SSR would hydrate against a different minute.
+  const [now, setNow] = useState<Date | null>(null)
+  useEffect(() => {
+    setNow(new Date())
+    const id = setInterval(() => setNow(new Date()), 30_000)
+    return () => clearInterval(id)
+  }, [])
 
-  const [routes, setRoutes] = useState<RouteRow[]>([])
-  const [recentSchedules, setRecentSchedules] = useState<AnyDoc[]>([])
+  /* ── live buses ──
+     The socket broadcast is public and carries every operator's buses, because
+     the commuter map is multi-operator. Filter to this company before counting,
+     or the fleet chart reports other people's vehicles. */
+  useEffect(() => {
+    const companyName = operator?.companyName
+    if (!companyName) return
+    const mine = (b: LiveBus) => b.companyName === companyName
+    const socket = getSocket()
 
+    socket.on('bus:snapshot', (buses: LiveBus[]) => setLiveBuses(buses.filter(mine)))
+    socket.on('bus:location', (bus: LiveBus) =>
+      setLiveBuses(prev =>
+        mine(bus) ? [...prev.filter(b => b.scheduleId !== bus.scheduleId), bus] : prev,
+      ),
+    )
+    socket.on('bus:removed', (scheduleId: string) =>
+      setLiveBuses(prev => prev.filter(b => b.scheduleId !== scheduleId)),
+    )
+    return () => {
+      socket.off('bus:snapshot')
+      socket.off('bus:location')
+      socket.off('bus:removed')
+    }
+  }, [operator?.companyName])
+
+  /* ── data ── */
   useEffect(() => {
     let cancelled = false
 
@@ -78,7 +139,7 @@ export default function DashboardPage() {
           const res = await fetch(url)
           const data = await res.json()
           if (!res.ok) throw new Error(data.error || `Failed: ${url}`)
-          return data
+          return Array.isArray(data) ? (data as AnyDoc[]) : []
         }
 
         const [routesRaw, schedulesRaw, terminalsRaw] = await Promise.all([
@@ -87,59 +148,10 @@ export default function DashboardPage() {
           fetchJson('/api/terminals'),
         ])
 
-        const routesDocs: AnyDoc[] = Array.isArray(routesRaw) ? routesRaw : []
-        const schedules: AnyDoc[] = Array.isArray(schedulesRaw) ? schedulesRaw : []
-        const terminals: AnyDoc[] = Array.isArray(terminalsRaw) ? terminalsRaw : []
-
-        /* ── computed stats ── */
-        const activeSchedules = schedules.filter((s) => s?.status === 'active')
-        const activeRouteIds = new Set(
-          activeSchedules.map((s) => String(s.routeId ?? '')).filter(Boolean),
-        )
-        const allVehicles = new Set(schedules.map((s) => String(s.vehicleNumber ?? '')).filter(Boolean))
-        const activeVehicles = new Set(
-          activeSchedules.map((s) => String(s.vehicleNumber ?? '')).filter(Boolean),
-        )
-        const scheduleRate = schedules.length ? (activeSchedules.length / schedules.length) * 100 : 0
-        const fleetUtil = allVehicles.size ? (activeVehicles.size / allVehicles.size) * 100 : 0
-
-        /* ── routes table ── */
-        const routeRows: RouteRow[] = routesDocs.map((r) => {
-          const rid = String(r._id ?? '')
-          const rowSchedules = schedules.filter((s) => String(s.routeId ?? '') === rid)
-          const rowActive = rowSchedules.filter((s) => s.status === 'active')
-          const vehicles = [...new Set(rowSchedules.map((s) => String(s.vehicleNumber ?? '')).filter(Boolean))]
-          return {
-            id: rid,
-            routeNumber: String(r.routeNumber ?? '—'),
-            startPoint: String(r.startPoint ?? '—'),
-            endPoint: String(r.endPoint ?? '—'),
-            activeSchedules: rowActive.length,
-            totalSchedules: rowSchedules.length,
-            vehicles,
-          }
-        })
-
-        /* ── recent schedules (latest 5 by arrival time string) ── */
-        const recent5 = [...schedules]
-          .sort((a, b) => {
-            const ta = safeDateToMs(a.updatedAt ?? a.createdAt) ?? 0
-            const tb = safeDateToMs(b.updatedAt ?? b.createdAt) ?? 0
-            return tb - ta
-          })
-          .slice(0, 5)
-
-
         if (!cancelled) {
-          setStats({
-            activeRoutes: String(activeRouteIds.size),
-            totalVehicles: String(allVehicles.size),
-            terminals: String(terminals.length),
-            totalSchedules: String(schedules.length),
-          })
-          setRates({ scheduleRate, fleetUtil })
-          setRoutes(routeRows)
-          setRecentSchedules(recent5)
+          setRouteDocs(routesRaw)
+          setSchedules(schedulesRaw)
+          setTerminals(terminalsRaw)
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load dashboard')
@@ -152,25 +164,178 @@ export default function DashboardPage() {
     return () => { cancelled = true }
   }, [])
 
-  /* ── stat card definitions ── */
-  // Counts are not states, so they get no colour. Routes are not "more blue"
-  // than terminals - hue here encoded nothing and competed with emerald/amber,
-  // which do carry meaning elsewhere on this page. The number is the
-  // information; the icon is just a signpost.
+  /* ── derived ── */
+
+  const weekday = now?.getDay() ?? new Date().getDay()
+  const nowMinutes = now ? now.getHours() * 60 + now.getMinutes() : 0
+
+  /** Trips that are switched on AND scheduled to run today. Every chart below
+   *  is scoped to this, because "today" is the question the page answers. */
+  const runningToday = useMemo(
+    () => schedules.filter(s => s.status === 'active' && runsOn(s, weekday)),
+    [schedules, weekday],
+  )
+
+  const hourly: HourBucket[] = useMemo(() => {
+    const buckets = Array.from({ length: 24 }, (_, hour) => ({
+      hour, label: hourLabel(hour), departures: 0,
+    }))
+    for (const s of runningToday) {
+      const mins = toMinutes(s.departureTime)
+      if (mins !== null) buckets[Math.floor(mins / 60)].departures++
+    }
+    return buckets
+  }, [runningToday])
+
+  const weekly: DayBucket[] = useMemo(() => {
+    const active = schedules.filter(s => s.status === 'active')
+    return DAY_NAMES.map((day, i) => ({
+      day,
+      trips: active.filter(s => runsOn(s, i)).length,
+      isToday: i === weekday,
+    }))
+  }, [schedules, weekday])
+
+  const fleet = useMemo(() => {
+    const all = new Set(
+      schedules.map(s => String(s.vehicleNumber ?? '').trim()).filter(Boolean),
+    )
+    const onRoad = new Set(
+      liveBuses.map(b => String(b.vehicleNumber ?? '').trim()).filter(Boolean),
+    )
+    const dueToday = new Set(
+      runningToday.map(s => String(s.vehicleNumber ?? '').trim()).filter(Boolean),
+    )
+    const waiting = [...dueToday].filter(v => !onRoad.has(v))
+    const off = [...all].filter(v => !onRoad.has(v) && !dueToday.has(v))
+
+    const slices: FleetSlice[] = [
+      { name: 'On the road', value: onRoad.size,    color: RUNNING },
+      { name: 'Due out',     value: waiting.length, color: IDLE },
+      { name: 'Not running', value: off.length,     color: OFF },
+    ]
+    return { slices, total: all.size, onRoad: onRoad.size }
+  }, [schedules, runningToday, liveBuses])
+
+  const routeLoad: RouteLoad[] = useMemo(() => {
+    const byRoute = new Map<string, RouteLoad>()
+    for (const s of runningToday) {
+      const label = String(s.route?.routeNumber ?? s.routeNumber ?? '—')
+      const entry = byRoute.get(label) ?? { route: label, trips: 0, fareCeiling: 0 }
+      entry.trips++
+      entry.fareCeiling += Number(s.fare) || 0
+      byRoute.set(label, entry)
+    }
+    return [...byRoute.values()].sort((a, b) => b.trips - a.trips).slice(0, 6)
+  }, [runningToday])
+
+  /** The next trips due out, which is what a dispatcher checks the clock for. */
+  const nextDepartures = useMemo(() => {
+    return runningToday
+      .map(s => ({ s, mins: toMinutes(s.departureTime) }))
+      .filter((x): x is { s: AnyDoc; mins: number } => x.mins !== null && x.mins >= nowMinutes)
+      .sort((a, b) => a.mins - b.mins)
+      .slice(0, 5)
+      .map(({ s, mins }) => ({
+        id: String(s._id),
+        route: String(s.route?.routeNumber ?? s.routeNumber ?? '—'),
+        vehicle: String(s.vehicleNumber ?? '—'),
+        time: clockLabel(mins),
+        inMinutes: mins - nowMinutes,
+      }))
+  }, [runningToday, nowMinutes])
+
+  const departuresLeft = useMemo(
+    () => runningToday.filter(s => {
+      const m = toMinutes(s.departureTime)
+      return m !== null && m >= nowMinutes
+    }).length,
+    [runningToday, nowMinutes],
+  )
+
+  const routesRunningToday = useMemo(
+    () => new Set(runningToday.map(s => String(s.routeId ?? '')).filter(Boolean)).size,
+    [runningToday],
+  )
+
+  const routes: RouteRow[] = useMemo(
+    () => routeDocs.map(r => {
+      const rid = String(r._id ?? '')
+      const rowSchedules = schedules.filter(s => String(s.routeId ?? '') === rid)
+      const rowActive = rowSchedules.filter(s => s.status === 'active')
+      return {
+        id: rid,
+        routeNumber: String(r.routeNumber ?? '—'),
+        startPoint: String(r.startPoint ?? '—'),
+        endPoint: String(r.endPoint ?? '—'),
+        activeSchedules: rowActive.length,
+        totalSchedules: rowSchedules.length,
+        vehicles: [...new Set(rowSchedules.map(s => String(s.vehicleNumber ?? '')).filter(Boolean))],
+      }
+    }),
+    [routeDocs, schedules],
+  )
+
+  const isWeekend = weekday === 0 || weekday === 6
+
+  /* ── stat cards ──
+     Counts are not states, so they get no colour. The only exception is the
+     live dot, which reports a condition rather than decorating one. */
   const statCards = [
-    { key: 'activeRoutes',   label: 'Active Routes',   icon: MapPin,     href: '/dashboard/routes' },
-    { key: 'totalVehicles',  label: 'Total Vehicles',  icon: Bus,        href: '/dashboard/schedules' },
-    { key: 'terminals',      label: 'Terminals',       icon: Building2,  href: '/dashboard/terminals' },
-    { key: 'totalSchedules', label: 'Total Schedules', icon: Clock,      href: '/dashboard/schedules' },
+    {
+      key: 'live',
+      label: 'On the road now',
+      value: String(fleet.onRoad),
+      sub: fleet.onRoad > 0 ? 'transmitting GPS' : 'no buses transmitting',
+      icon: Radio,
+      href: '/map',
+      live: true,
+    },
+    {
+      key: 'departures',
+      label: 'Departures left',
+      value: String(departuresLeft),
+      sub: `of ${runningToday.length} today`,
+      icon: Clock,
+      href: '/dashboard/schedules',
+      live: false,
+    },
+    {
+      key: 'routes',
+      label: 'Routes running',
+      value: `${routesRunningToday}/${routeDocs.length}`,
+      sub: isWeekend ? 'weekend service' : 'weekday service',
+      icon: MapPin,
+      href: '/dashboard/routes',
+      live: false,
+    },
+    {
+      key: 'terminals',
+      label: 'Terminals',
+      value: String(terminals.length),
+      sub: 'pickup points on the map',
+      icon: Building2,
+      href: '/dashboard/terminals',
+      live: false,
+    },
   ]
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
 
       {/* ── Heading ── */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-100">Overview</h1>
-        <p className="text-sm text-slate-500 mt-1">Here&apos;s a live summary of your bus operations.</p>
+      <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-100">Overview</h1>
+          <p className="text-sm text-slate-500 mt-1">
+            {operator?.companyName ? `${operator.companyName} — today's service` : "Today's service"}
+          </p>
+        </div>
+        <p className="text-sm text-slate-500 font-mono tabular-nums">
+          {now
+            ? `${now.toLocaleDateString('en-PH', { weekday: 'short', day: 'numeric', month: 'short' })} · ${now.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit', hour12: false })}`
+            : '—'}
+        </p>
       </div>
 
       {error && (
@@ -182,7 +347,7 @@ export default function DashboardPage() {
 
       {/* ── STAT CARDS ── */}
       <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {statCards.map((s) => (
+        {statCards.map(s => (
           <Link
             key={s.key}
             href={s.href}
@@ -194,68 +359,54 @@ export default function DashboardPage() {
                 <Skeleton className="h-9 w-20" />
               ) : (
                 <p className="text-3xl font-bold text-slate-100 tracking-tight font-mono tabular-nums">
-                  {(stats as any)[s.key]}
+                  {s.value}
                 </p>
               )}
+              <p className="text-[11px] text-slate-600 mt-1.5 truncate">{s.sub}</p>
             </div>
-            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 ml-3">
+            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 ml-3 relative">
               <s.icon className="w-4.5 h-4.5 text-slate-400" />
+              {s.live && fleet.onRoad > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex w-2 h-2">
+                  <span className="absolute inline-flex w-full h-full rounded-full bg-emerald-400 opacity-70 animate-ping motion-reduce:animate-none" />
+                  <span className="relative inline-flex w-2 h-2 rounded-full bg-emerald-400" />
+                </span>
+              )}
             </div>
           </Link>
         ))}
       </div>
 
-      {/* ── MIDDLE ROW: Fleet Health + Recent Schedules ── */}
-      <div className="grid md:grid-cols-2 gap-4">
+      {/* ── SERVICE CURVE (the hero) ── */}
+      <ChartCard
+        title="Today's service curve"
+        hint="Departures per hour, from the trips set to run today"
+        action={
+          <Link
+            href="/dashboard/schedules"
+            className="text-xs text-slate-500 hover:text-blue-400 flex items-center gap-1 transition shrink-0"
+          >
+            Timetable <ChevronRight className="w-3 h-3" />
+          </Link>
+        }
+      >
+        {loading
+          ? <Skeleton className="h-[220px] w-full" />
+          : <ServiceCurve data={hourly} nowLabel={hourLabel(Math.floor(nowMinutes / 60))} />}
+      </ChartCard>
 
-        {/* Fleet Health */}
-        <div className="bg-slate-900/60 border border-white/8 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-blue-400" />
-              <h2 className="text-sm font-semibold text-slate-100">Fleet Health</h2>
-            </div>
-            <span className="text-xs text-slate-500 font-mono">live</span>
-          </div>
+      {/* ── Next out + fleet ── */}
+      <div className="grid lg:grid-cols-5 gap-4">
 
-          {loading ? (
-            <div className="space-y-5">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          ) : (
-            <div className="space-y-5">
-              <StatBadge pct={rates.scheduleRate} label="Active Schedule Rate" />
-              <StatBadge pct={rates.fleetUtil} label="Fleet Utilization" />
-
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <div className="bg-white/3 border border-white/5 rounded-lg px-3 py-3">
-                  <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-1">Active Schedules</p>
-                  <p className="text-lg font-bold text-emerald-400 font-mono tabular-nums">
-                    {loading ? '—' : Math.round((rates.scheduleRate / 100) * parseInt(stats.totalSchedules || '0'))}
-                  </p>
-                </div>
-                <div className="bg-white/3 border border-white/5 rounded-lg px-3 py-3">
-                  <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-1">Idle Vehicles</p>
-                  <p className="text-lg font-bold text-amber-400 font-mono tabular-nums">
-                    {loading ? '—' : Math.max(0, parseInt(stats.totalVehicles || '0') - Math.round((rates.fleetUtil / 100) * parseInt(stats.totalVehicles || '0')))}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Recent Schedules */}
-        <div className="bg-slate-900/60 border border-white/8 rounded-xl p-5">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-slate-400" />
-              <h2 className="text-sm font-semibold text-slate-100">Recent Schedules</h2>
+        <div className="lg:col-span-3 min-w-0 bg-slate-900/60 border border-white/8 rounded-xl p-5">
+          <div className="flex items-start justify-between gap-4 mb-5">
+            <div>
+              <h2 className="text-sm font-semibold text-slate-100">Next out</h2>
+              <p className="text-xs text-slate-500 mt-0.5">Trips due to leave after right now</p>
             </div>
             <Link
               href="/dashboard/schedules"
-              className="text-xs text-slate-500 hover:text-blue-400 flex items-center gap-1 transition"
+              className="text-xs text-slate-500 hover:text-blue-400 flex items-center gap-1 transition shrink-0"
             >
               View all <ChevronRight className="w-3 h-3" />
             </Link>
@@ -263,39 +414,79 @@ export default function DashboardPage() {
 
           {loading ? (
             <div className="space-y-2">
-              {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-11 w-full" />)}
+              {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
             </div>
-          ) : recentSchedules.length === 0 ? (
-            <p className="text-sm text-slate-500">No schedules yet.</p>
+          ) : nextDepartures.length === 0 ? (
+            <div className="py-8 text-center">
+              <p className="text-sm text-slate-400">
+                {runningToday.length === 0
+                  ? 'Nothing is scheduled to run today.'
+                  : 'That was the last departure — service is done for today.'}
+              </p>
+              <Link href="/dashboard/schedules" className="text-xs text-blue-400 hover:underline mt-1 inline-block">
+                Open the timetable
+              </Link>
+            </div>
           ) : (
             <div className="space-y-1.5">
-              {recentSchedules.map((s, i) => {
-                const routeLabel = s.route?.routeNumber ?? s.routeNumber ?? '—'
-                const dep = s.departureTime ? to12Hour(String(s.departureTime)) : '—'
-                const arr = s.arrivalTime ? to12Hour(String(s.arrivalTime)) : '—'
-                const active = s.status === 'active'
-                return (
-                  <div
-                    key={String(s._id ?? i)}
-                    className="flex items-center justify-between bg-white/3 border border-white/5 rounded-lg px-3 py-2.5 gap-2"
-                  >
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-slate-100 truncate">Route {routeLabel}</p>
-                      <p className="text-[11px] text-slate-500">{dep} → {arr}</p>
-                    </div>
-                    <span className={`shrink-0 text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${
-                      active
-                        ? 'bg-emerald-500/15 text-emerald-400'
-                        : 'bg-slate-700/60 text-slate-500'
-                    }`}>
-                      {active ? 'Active' : 'Inactive'}
+              {nextDepartures.map(d => (
+                <div
+                  key={d.id}
+                  className="flex items-center justify-between gap-3 bg-white/3 border border-white/5 rounded-lg px-3 py-2.5"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-sm font-semibold text-slate-100 font-mono tabular-nums shrink-0 w-[4.5rem]">
+                      {d.time}
                     </span>
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-slate-100 truncate">Route {d.route}</p>
+                      <p className="text-[11px] text-slate-500 font-mono">{d.vehicle}</p>
+                    </div>
                   </div>
-                )
-              })}
+                  <span className={`shrink-0 text-[11px] font-medium font-mono tabular-nums px-2 py-0.5 rounded-full ${
+                    d.inMinutes <= 30 ? 'bg-amber-500/15 text-amber-400' : 'bg-white/5 text-slate-500'
+                  }`}>
+                    {d.inMinutes < 60 ? `in ${d.inMinutes}m` : `in ${Math.floor(d.inMinutes / 60)}h ${d.inMinutes % 60}m`}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
         </div>
+
+        <div className="lg:col-span-2 min-w-0">
+          <ChartCard title="Where the fleet is" hint="Every vehicle number in your timetable">
+            {loading ? (
+              <Skeleton className="h-[196px] w-full" />
+            ) : (
+              <>
+                <FleetDonut data={fleet.slices} total={fleet.total} />
+                <div className="space-y-1.5 mt-4 pt-4 border-t border-white/5">
+                  {fleet.slices.map(s => (
+                    <div key={s.name} className="flex items-center justify-between text-xs">
+                      <span className="flex items-center gap-2 text-slate-400">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
+                        {s.name}
+                      </span>
+                      <span className="text-slate-300 font-mono tabular-nums">{s.value}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </ChartCard>
+        </div>
+      </div>
+
+      {/* ── Weekly coverage + route load ── */}
+      <div className="grid lg:grid-cols-2 gap-4">
+        <ChartCard title="Weekly coverage" hint="Active trips running on each day of the week">
+          {loading ? <Skeleton className="h-[180px] w-full" /> : <WeeklyCoverage data={weekly} />}
+        </ChartCard>
+
+        <ChartCard title="Busiest routes today" hint="Trips per route — hover for the fare ceiling">
+          {loading ? <Skeleton className="h-[200px] w-full" /> : <RouteLoadBars data={routeLoad} />}
+        </ChartCard>
       </div>
 
       {/* ── ROUTES TABLE ── */}
@@ -303,7 +494,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-white/5">
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-blue-400" />
-            <h2 className="text-sm font-semibold text-slate-100">Routes Status</h2>
+            <h2 className="text-sm font-semibold text-slate-100">Routes status</h2>
           </div>
           <Link
             href="/dashboard/routes"
@@ -338,12 +529,12 @@ export default function DashboardPage() {
               ) : routes.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="px-5 py-8 text-center text-sm text-slate-500">
-                    No routes found.{' '}
+                    No routes yet.{' '}
                     <Link href="/dashboard/routes" className="text-blue-400 hover:underline">Add your first route</Link>
                   </td>
                 </tr>
               ) : (
-                routes.map((r) => {
+                routes.map(r => {
                   const hasActive = r.activeSchedules > 0
                   return (
                     <tr key={r.id} className="border-b border-white/5 last:border-0 hover:bg-white/2 transition">
@@ -363,8 +554,10 @@ export default function DashboardPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 hidden md:table-cell">
-                        <span className="text-sm text-slate-500">
-                          {r.vehicles.length > 0 ? r.vehicles.slice(0, 2).join(', ') + (r.vehicles.length > 2 ? ` +${r.vehicles.length - 2}` : '') : '—'}
+                        <span className="text-sm text-slate-500 font-mono">
+                          {r.vehicles.length > 0
+                            ? r.vehicles.slice(0, 2).join(', ') + (r.vehicles.length > 2 ? ` +${r.vehicles.length - 2}` : '')
+                            : '—'}
                         </span>
                       </td>
                       <td className="px-4 py-3">
