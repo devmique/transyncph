@@ -17,6 +17,16 @@ import {
   Menu,
   X,
 } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog'
 
 export default function DashboardLayout({
   children,
@@ -27,6 +37,9 @@ export default function DashboardLayout({
   const router = useRouter()
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
+  // Held here rather than inside SidebarContent, which renders twice (desktop
+  // aside and mobile drawer) and would otherwise give us two dialogs.
+  const [confirmLogout, setConfirmLogout] = useState(false)
 
   useEffect(() => {
     if (!operator) {
@@ -94,7 +107,7 @@ export default function DashboardLayout({
       {/* Logout */}
       <div className="px-3 py-4 border-t border-white/5">
         <button
-          onClick={logout}
+          onClick={() => setConfirmLogout(true)}
           className="cursor-pointer w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-500 hover:text-red-400 hover:bg-red-500/5 border border-transparent hover:border-red-500/10 transition"
         >
           <LogOut className="w-4 h-4 shrink-0" />
@@ -171,6 +184,35 @@ export default function DashboardLayout({
           {children}
         </main>
       </div>
+
+      {/* Logout confirmation. Explicit slate classes because no `dark` class is
+          applied to <html>, so the shadcn tokens would otherwise render light
+          on this dark layout. Same approach as DeleteAccountModal. */}
+      <AlertDialog open={confirmLogout} onOpenChange={setConfirmLogout}>
+        <AlertDialogContent className="bg-slate-900 border-white/10 text-slate-100 sm:max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-base font-semibold text-slate-100">
+              Log out?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-slate-400 text-sm leading-relaxed">
+              You will be signed out of{' '}
+              <span className="text-slate-200 font-medium">{operator.companyName}</span>{' '}
+              and returned to the login page.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="cursor-pointer bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:text-slate-100">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={logout}
+              className="cursor-pointer bg-red-600 hover:bg-red-700 text-white border-0"
+            >
+              Log out
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
