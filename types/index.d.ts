@@ -66,8 +66,12 @@ export interface OperatorProfile {
     facilities?: string[]
   }
   
-  type ActivityItem = {
+  export type ActivityKind = 'announcement' | 'route' | 'schedule' | 'terminal'
+
+  export type ActivityItem = {
     key: string
+    /** Which collection the record came from, so the log can be filtered. */
+    kind: ActivityKind
     label: string
     time: string
     tsMs: number

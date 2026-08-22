@@ -11,6 +11,7 @@ import {
   Clock,
   Building2,
   Megaphone,
+  Activity,
   Settings,
   LogOut,
   Bus,
@@ -33,7 +34,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { operator, logout } = useAuth()
+  const { operator, isLoading, logout } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -41,18 +42,23 @@ export default function DashboardLayout({
   // aside and mobile drawer) and would otherwise give us two dialogs.
   const [confirmLogout, setConfirmLogout] = useState(false)
 
+  // Wait for /api/auth/me to resolve before deciding. `operator` is null while
+  // that request is in flight, and redirecting on it sent every hard load of a
+  // dashboard sub-page to /login - where the proxy saw a valid cookie and
+  // bounced it to /dashboard, so a pasted or bookmarked sub-page URL always
+  // landed on Overview.
   useEffect(() => {
-    if (!operator) {
+    if (!isLoading && !operator) {
       router.push('/login')
     }
-  }, [operator, router])
+  }, [isLoading, operator, router])
 
   // Close drawer on route change
   useEffect(() => {
     setMobileOpen(false)
   }, [pathname])
 
-  if (!operator) return null
+  if (isLoading || !operator) return null
 
   const navigation = [
     { name: 'Overview', href: '/dashboard', icon: LayoutDashboard },
@@ -60,6 +66,7 @@ export default function DashboardLayout({
     { name: 'Routes', href: '/dashboard/routes', icon: MapPin },
     { name: 'Schedules', href: '/dashboard/schedules', icon: Clock },
     { name: 'Announcements', href: '/dashboard/announcements', icon: Megaphone },
+    { name: 'Activity', href: '/dashboard/activity', icon: Activity },
     { name: 'Settings', href: '/dashboard/settings', icon: Settings },
   ]
 

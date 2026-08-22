@@ -7,8 +7,8 @@ import {
   ArrowRight, Activity, CheckCircle2, XCircle,
   AlertCircle, ChevronRight,
 } from 'lucide-react'
-import { safeDateToMs, formatTimeAgo, formatPHPCompact, to12Hour } from '@/utils/format'
-import { ActivityItem, AnyDoc } from '@/types'
+import { safeDateToMs, formatPHPCompact, to12Hour } from '@/utils/format'
+import { AnyDoc } from '@/types'
 
 /* ─── tiny helpers ─── */
 const Skeleton = ({ className }: { className?: string }) => (
@@ -66,7 +66,6 @@ export default function DashboardPage() {
 
   const [routes, setRoutes] = useState<RouteRow[]>([])
   const [recentSchedules, setRecentSchedules] = useState<AnyDoc[]>([])
-  const [activity, setActivity] = useState<ActivityItem[]>([])
 
   useEffect(() => {
     let cancelled = false
@@ -82,14 +81,12 @@ export default function DashboardPage() {
           return data
         }
 
-        const [announcementsRaw, routesRaw, schedulesRaw, terminalsRaw] = await Promise.all([
-          fetchJson('/api/announcements'),
+        const [routesRaw, schedulesRaw, terminalsRaw] = await Promise.all([
           fetchJson('/api/routes'),
           fetchJson('/api/schedules'),
           fetchJson('/api/terminals'),
         ])
 
-        const announcements: AnyDoc[] = Array.isArray(announcementsRaw) ? announcementsRaw : []
         const routesDocs: AnyDoc[] = Array.isArray(routesRaw) ? routesRaw : []
         const schedules: AnyDoc[] = Array.isArray(schedulesRaw) ? schedulesRaw : []
         const terminals: AnyDoc[] = Array.isArray(terminalsRaw) ? terminalsRaw : []
@@ -132,52 +129,6 @@ export default function DashboardPage() {
           })
           .slice(0, 5)
 
-        /* ── activity feed ── */
-        const candidates: ActivityItem[] = []
-        for (const a of announcements) {
-          const tsMs = safeDateToMs(a.updatedAt ?? a.createdAt)
-          if (tsMs === null) continue
-          candidates.push({
-            key: `ann-${String(a._id ?? a.title)}-${tsMs}`,
-            label: `Announcement: ${String(a.title ?? 'Untitled')}`,
-            time: formatTimeAgo(tsMs),
-            tsMs,
-          })
-        }
-        for (const r of routesDocs) {
-          const tsMs = safeDateToMs(r.updatedAt ?? r.createdAt)
-          if (tsMs === null) continue
-          candidates.push({
-            key: `route-${String(r._id)}-${tsMs}`,
-            label: `Route updated: ${String(r.routeNumber ?? '—')}`,
-            time: formatTimeAgo(tsMs),
-            tsMs,
-          })
-        }
-        for (const s of schedules) {
-          const tsMs = safeDateToMs(s.updatedAt ?? s.createdAt)
-          if (tsMs === null) continue
-          const routeLabel = s.route?.routeNumber
-            ? `${s.route.routeNumber} · ${s.route.startPoint} → ${s.route.endPoint}`
-            : '—'
-          candidates.push({
-            key: `sched-${String(s._id)}-${tsMs}`,
-            label: `Schedule updated: ${routeLabel}`,
-            time: formatTimeAgo(tsMs),
-            tsMs,
-          })
-        }
-        for (const t of terminals) {
-          const tsMs = safeDateToMs(t.updatedAt ?? t.createdAt)
-          if (tsMs === null) continue
-          candidates.push({
-            key: `terminal-${String(t._id)}-${tsMs}`,
-            label: `Terminal updated: ${String(t.name ?? 'Terminal')}`,
-            time: formatTimeAgo(tsMs),
-            tsMs,
-          })
-        }
-        candidates.sort((a, b) => b.tsMs - a.tsMs)
 
         if (!cancelled) {
           setStats({
@@ -189,7 +140,6 @@ export default function DashboardPage() {
           setRates({ scheduleRate, fleetUtil })
           setRoutes(routeRows)
           setRecentSchedules(recent5)
-          setActivity(candidates.slice(0, 6))
         }
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load dashboard')
@@ -433,45 +383,6 @@ export default function DashboardPage() {
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* ── RECENT ACTIVITY ── */}
-      <div className="bg-slate-900/60 border border-white/8 rounded-xl p-5">
-        <div className="flex items-center gap-2 mb-5">
-          <Activity className="w-4 h-4 text-slate-400" />
-          <h2 className="text-sm font-semibold text-slate-100">Recent Activity</h2>
-        </div>
-
-        {loading ? (
-          <div className="space-y-1">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="flex items-center justify-between py-2.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500/40 shrink-0" />
-                  <Skeleton className="h-4 w-56" />
-                </div>
-                <Skeleton className="h-3 w-20" />
-              </div>
-            ))}
-          </div>
-        ) : activity.length === 0 ? (
-          <p className="text-sm text-slate-500">No activity yet.</p>
-        ) : (
-          <div className="space-y-0.5">
-            {activity.map((item, i) => (
-              <div
-                key={item.key}
-                className={`flex items-center justify-between py-2.5 ${i < activity.length - 1 ? 'border-b border-white/5' : ''}`}
-              >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500/60 shrink-0" />
-                  <p className="text-sm text-slate-100 truncate">{item.label}</p>
-                </div>
-                <p className="text-xs text-slate-500 shrink-0 ml-4">{item.time}</p>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
     </div>
