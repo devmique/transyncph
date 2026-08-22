@@ -9,6 +9,7 @@ import {
 import DemoModal from '@/components/demo-modal'
 import HeroVideoCard from '@/components/HeroVideoCard'
 import DepartureBoard from '@/components/landing/DepartureBoard'
+import { useScrollReveal } from '@/hooks/useScrollReveal'
 
 /* Pricing tiers. Single source of truth for the pricing section.
    ponytail: hardcoded here rather than fetched, move to the API if plans
@@ -77,12 +78,12 @@ const FEATURES = [
 /** Section heading with the rule that draws itself as the section arrives. */
 function SectionHead({ title, blurb }: { title: string; blurb: string }) {
   return (
-    <div className="max-w-2xl mb-12 sm:mb-14">
-      <div className="h-px w-16 bg-blue-500/60 mb-6 rule-draw" />
-      <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-100 mb-4 reveal">
+    <div className="max-w-2xl mb-12 sm:mb-14" data-reveal>
+      <div className="h-px w-16 bg-blue-500/60 mb-6 rule-line" />
+      <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-100 mb-4">
         {title}
       </h2>
-      <p className="text-slate-400 font-light text-sm sm:text-base max-w-[60ch] reveal">
+      <p className="text-slate-400 font-light text-sm sm:text-base max-w-[60ch]">
         {blurb}
       </p>
     </div>
@@ -92,6 +93,8 @@ function SectionHead({ title, blurb }: { title: string; blurb: string }) {
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [demoOpen, setDemoOpen] = useState(false)
+
+  useScrollReveal()
 
   return (
     <main className="min-h-[100dvh] text-slate-100">
@@ -188,7 +191,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 sm:pt-20 lg:pt-24 pb-16 sm:pb-24">
           <div className="grid lg:grid-cols-12 gap-10 lg:gap-14 items-center">
 
-            <div className="lg:col-span-5">
+            <div className="lg:col-span-5" data-reveal="hero">
               <h1 className="text-4xl sm:text-5xl lg:text-[3.4rem] font-bold leading-[1.05] tracking-tight text-slate-100 mb-6">
                 Your whole timetable,{' '}
                 <span className="text-blue-500">live.</span>
@@ -200,7 +203,7 @@ export default function Home() {
               <div className="flex flex-col sm:flex-row gap-3">
                 <Link
                   href="/register"
-                  className="h-11 px-6 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white text-sm font-semibold rounded-lg transition"
+                  className="cta-glow h-11 px-6 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white text-sm font-semibold rounded-lg transition"
                 >
                   Get started
                   <ArrowRight className="w-4 h-4" />
@@ -228,24 +231,24 @@ export default function Home() {
       <section className="border-t border-white/5 py-16 sm:py-24 bg-slate-900/40 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-12 gap-10 lg:gap-14 items-center">
-            <div className="lg:col-span-4">
-              <div className="h-px w-16 bg-blue-500/60 mb-6 rule-draw" />
-              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-100 mb-4 reveal">
+            <div className="lg:col-span-4" data-reveal>
+              <div className="h-px w-16 bg-blue-500/60 mb-6 rule-line" />
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-100 mb-4">
                 See it running
               </h2>
-              <p className="text-slate-400 font-light text-sm sm:text-base mb-6 reveal">
+              <p className="text-slate-400 font-light text-sm sm:text-base mb-6">
                 Four minutes through the operator dashboard: building a route, publishing
                 a timetable, and watching a bus move on the commuter map.
               </p>
               <button
                 onClick={() => setDemoOpen(true)}
-                className="cursor-pointer inline-flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition reveal"
+                className="cursor-pointer inline-flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition"
               >
                 Watch the walkthrough
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
-            <div className="lg:col-span-8 min-w-0 reveal">
+            <div className="lg:col-span-8 min-w-0" data-reveal>
               <HeroVideoCard onOpen={() => setDemoOpen(true)} />
             </div>
           </div>
@@ -260,14 +263,14 @@ export default function Home() {
             blurb="Everything needed to run a transport network, and a public map so passengers can actually find you."
           />
 
-          <div className="reveal-stagger grid grid-cols-1 md:grid-cols-6 gap-4 sm:gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-4 sm:gap-5" data-reveal-stagger>
 
             {/* Lead cell, tinted */}
             <article
-              className="md:col-span-4 rounded-xl border border-blue-600/20 p-6 sm:p-8 bg-gradient-to-br from-blue-600/15 via-blue-600/5 to-transparent"
+              className="feature-card feature-card-lead md:col-span-4 rounded-xl border border-blue-600/20 p-6 sm:p-8 bg-gradient-to-br from-blue-600/15 via-blue-600/5 to-transparent transition-all duration-300 ease-out hover:border-blue-600/40 hover:from-blue-600/25 hover:via-blue-600/10 hover:to-transparent hover:shadow-[0_0_30px_-5px] hover:shadow-blue-600/20"
               style={{ '--i': 0 } as React.CSSProperties}
             >
-              <div className="w-10 h-10 bg-blue-600/15 border border-blue-600/25 rounded-lg flex items-center justify-center mb-5">
+              <div className="feature-icon w-10 h-10 bg-blue-600/15 border border-blue-600/25 rounded-lg flex items-center justify-center mb-5">
                 <MapPin className="w-5 h-5 text-blue-400" />
               </div>
               <h3 className="text-xl font-semibold text-slate-100 mb-2">{FEATURES[0].title}</h3>
@@ -275,10 +278,10 @@ export default function Home() {
             </article>
 
             <article
-              className="md:col-span-2 rounded-xl border border-white/8 bg-slate-900/60 p-6 sm:p-7"
+              className="feature-card md:col-span-2 rounded-xl border border-white/8 bg-slate-900/60 p-6 sm:p-7 transition-all duration-300 ease-out hover:border-white/18 hover:bg-slate-900/90 hover:shadow-[0_0_30px_-5px] hover:shadow-slate-400/10"
               style={{ '--i': 1 } as React.CSSProperties}
             >
-              <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center mb-5">
+              <div className="feature-icon w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center mb-5">
                 <Clock className="w-5 h-5 text-slate-300" />
               </div>
               <h3 className="text-base font-semibold text-slate-100 mb-2">{FEATURES[1].title}</h3>
@@ -288,10 +291,10 @@ export default function Home() {
             {FEATURES.slice(2).map(({ icon: Icon, title, description }, i) => (
               <article
                 key={title}
-                className="md:col-span-2 rounded-xl border border-white/8 bg-slate-900/60 p-6 sm:p-7"
+                className="feature-card md:col-span-2 rounded-xl border border-white/8 bg-slate-900/60 p-6 sm:p-7 transition-all duration-300 ease-out hover:border-white/18 hover:bg-slate-900/90 hover:shadow-[0_0_30px_-5px] hover:shadow-slate-400/10"
                 style={{ '--i': i + 2 } as React.CSSProperties}
               >
-                <div className="w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center mb-5">
+                <div className="feature-icon w-10 h-10 bg-white/5 border border-white/10 rounded-lg flex items-center justify-center mb-5">
                   <Icon className="w-5 h-5 text-slate-300" />
                 </div>
                 <h3 className="text-base font-semibold text-slate-100 mb-2">{title}</h3>
@@ -310,15 +313,15 @@ export default function Home() {
             blurb="Pick the plan that matches your fleet size. TranSync PH is in beta, so everything below is free today."
           />
 
-          <div className="reveal-stagger grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5" data-reveal-stagger>
             {PLANS.map((plan, i) => (
               <div
                 key={plan.name}
                 style={{ '--i': i } as React.CSSProperties}
-                className={`relative flex flex-col rounded-xl p-7 sm:p-8 border transition ${
+                className={`pricing-card ${plan.highlighted ? 'pricing-card-highlight' : ''} relative flex flex-col rounded-xl p-7 sm:p-8 border ${
                   plan.highlighted
-                    ? 'bg-blue-600/10 border-blue-600/50'
-                    : 'bg-slate-900/60 border-white/8'
+                    ? 'bg-blue-600/10 border-blue-600/50 hover:border-blue-600/70 hover:shadow-[0_0_40px_-10px] hover:shadow-blue-600/25'
+                    : 'bg-slate-900/60 border-white/8 hover:border-white/15 hover:bg-slate-900/80'
                 }`}
               >
                 {plan.highlighted && (
@@ -362,7 +365,7 @@ export default function Home() {
 
       {/* ── CTA BANNER ── */}
       <section className="border-t border-white/5 py-16 sm:py-20">
-        <div className="max-w-3xl mx-auto px-4 text-center reveal">
+        <div className="max-w-3xl mx-auto px-4 text-center" data-reveal>
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-100 mb-4">
             Ready to move your operation over?
           </h2>
