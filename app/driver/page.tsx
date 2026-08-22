@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, Suspense } from 'react'
+import { useEffect, useMemo, useRef, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Bus, MapPin, Square, Navigation, ArrowLeft } from 'lucide-react'
 import { getSocket } from '@/lib/socket'
@@ -9,7 +9,23 @@ import Link from 'next/link'
 
 function DriverPageContent() {
   const searchParams  = useSearchParams()
-  const scheduleId    = searchParams.get('scheduleId')
+  // The signed trip token IS the driver's credential - drivers have no accounts.
+  // The operator generates it from the dashboard and sends the link.
+  const token         = searchParams.get('token')
+
+  // Decoded only to look up schedule details for display. The signature is
+  // verified server-side; nothing here is trusted.
+  const scheduleId = useMemo(() => {
+    if (!token) return null
+    try {
+      const payload = token.split('.')[1]
+      if (!payload) return null
+      const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'))
+      return (JSON.parse(json).scheduleId as string) ?? null
+    } catch {
+      return null
+    }
+  }, [token])
 
   const [schedule, setSchedule]       = useState<(Schedule & { companyName?: string }) | null>(null)
   const [tracking, setTracking]       = useState(false)
@@ -34,7 +50,7 @@ function DriverPageContent() {
   }, [scheduleId])
 
   const startTracking = () => {
-    if (!scheduleId || !navigator.geolocation) {
+    if (!token || !scheduleId || !navigator.geolocation) {
       setStatus('error')
       return
     }
@@ -44,17 +60,16 @@ function DriverPageContent() {
 
     watchIdRef.current = navigator.geolocation.watchPosition(
       (pos) => {
-        const current = scheduleRef.current  
         setStatus('live')
         setAccuracy(Math.round(pos.coords.accuracy))
         setLastSent(new Date().toLocaleTimeString('en-PH'))
+        // Only the token and the coordinates. Vehicle, route and company are
+        // read from the token server-side so this client cannot claim to be a
+        // different bus.
         socket.emit('driver:location', {
-          scheduleId,
+          token,
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
-          vehicleNumber: current?.vehicleNumber,
-          routeNumber:   current?.routeNumber,
-          companyName:   current?.companyName,
         })
       },
       (err) => {
@@ -71,7 +86,7 @@ function DriverPageContent() {
       watchIdRef.current = null
     }
     const socket = getSocket()
-    if (scheduleId) socket.emit('driver:end', scheduleId)
+    if (token) socket.emit('driver:end', token)
     setTracking(false)
     setStatus('idle')
     setLastSent(null)
@@ -108,8 +123,14 @@ function DriverPageContent() {
         {!scheduleId ? (
           <div className="text-center py-4">
             <MapPin className="w-8 h-8 text-slate-600 mx-auto mb-2" />
-            <p className="text-sm text-slate-400 font-medium">No schedule selected</p>
-            <p className="text-xs text-slate-600 mt-1">Open the link sent by your operator.</p>
+            <p className="text-sm text-slate-400 font-medium">
+              {token ? 'This driver link is not valid' : 'No driver link'}
+            </p>
+            <p className="text-xs text-slate-600 mt-1">
+              {token
+                ? 'It may have expired. Ask your operator for a new one.'
+                : 'Open the link sent by your operator.'}
+            </p>
           </div>
         ) : schedule ? (
           <div className="space-y-1">
