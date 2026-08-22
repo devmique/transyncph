@@ -30,14 +30,34 @@ export async function GET(request: NextRequest) {
         },
       },
 
-      // 3. Keep only active schedules inside the array
+      // 3. Keep only active schedules that actually run today.
+      //    daysOfWeek is 0=Sunday (JS getDay). Mongo's $dayOfWeek is 1=Sunday,
+      //    hence the -1. Schedules saved before daysOfWeek existed have no
+      //    field at all; those are treated as running every day so an existing
+      //    timetable does not vanish from the public map.
       {
         $addFields: {
           schedules: {
             $filter: {
               input: '$schedules',
               as: 'sched',
-              cond: { $eq: ['$$sched.status', 'active'] },
+              cond: {
+                $and: [
+                  { $eq: ['$$sched.status', 'active'] },
+                  {
+                    $or: [
+                      { $eq: [{ $type: '$$sched.daysOfWeek' }, 'missing'] },
+                      { $eq: [{ $size: { $ifNull: ['$$sched.daysOfWeek', []] } }, 0] },
+                      {
+                        $in: [
+                          { $subtract: [{ $dayOfWeek: '$$NOW' }, 1] },
+                          { $ifNull: ['$$sched.daysOfWeek', []] },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
             },
           },
         },

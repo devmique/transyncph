@@ -8,6 +8,33 @@ import InputField from '@/components/ui/InputField'
 import { to12Hour, to24Hour } from '@/utils/format'
 import { useToast } from '@/components/ui/use-toast'
 
+// 0 = Sunday, matching JS getDay() and the daysOfWeek stored on a schedule.
+const DAYS = [
+  { value: 0, label: 'Sun' },
+  { value: 1, label: 'Mon' },
+  { value: 2, label: 'Tue' },
+  { value: 3, label: 'Wed' },
+  { value: 4, label: 'Thu' },
+  { value: 5, label: 'Fri' },
+  { value: 6, label: 'Sat' },
+]
+const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6]
+const WEEKDAYS = [1, 2, 3, 4, 5]
+const WEEKENDS = [0, 6]
+
+const sameDays = (a: number[], b: number[]) =>
+  a.length === b.length && [...a].sort().every((d, i) => d === [...b].sort()[i])
+
+/** Human summary for a schedule row. A schedule saved before daysOfWeek existed
+ *  has no value and runs every day, so it reads the same as an explicit Daily. */
+const describeDays = (days?: number[]) => {
+  if (!days?.length) return 'Daily'
+  if (sameDays(days, EVERY_DAY)) return 'Daily'
+  if (sameDays(days, WEEKDAYS)) return 'Weekdays'
+  if (sameDays(days, WEEKENDS)) return 'Weekends'
+  return [...days].sort().map((d) => DAYS[d].label).join(', ')
+}
+
 const empty: Schedule = {
   routeId: '',
   departureTime: '',
@@ -16,6 +43,7 @@ const empty: Schedule = {
   driverName: '',
   vehicleNumber: '',
   status: 'active',
+  daysOfWeek: EVERY_DAY,
 }
 
 export default function SchedulesPage() {
@@ -63,6 +91,11 @@ export default function SchedulesPage() {
       !formData.vehicleNumber.trim() ||
       !hasValidFare
     ) return
+
+    if (!formData.daysOfWeek?.length) {
+      setError('Pick at least one day this trip runs.')
+      return
+    }
 
     try {
       setError('')
@@ -115,9 +148,22 @@ export default function SchedulesPage() {
   }
 
   const handleEdit = (s: Schedule) => {
-    setFormData(s)
+    // A schedule saved before daysOfWeek existed has no value. Make the
+    // implied "runs every day" explicit so the picker reflects reality and the
+    // submit guard does not reject an untouched legacy row.
+    setFormData({ ...s, daysOfWeek: s.daysOfWeek?.length ? s.daysOfWeek : EVERY_DAY })
     setEditingId(s._id || null)
     setFormOpen(true)
+  }
+
+  const toggleDay = (day: number) => {
+    setFormData((prev) => {
+      const current = prev.daysOfWeek ?? EVERY_DAY
+      const next = current.includes(day)
+        ? current.filter((d) => d !== day)
+        : [...current, day].sort()
+      return { ...prev, daysOfWeek: next }
+    })
   }
 
   const confirmDelete = async () => {
@@ -254,6 +300,64 @@ export default function SchedulesPage() {
               </div>
             </div>
 
+            <div>
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <label className="block text-xs font-medium tracking-wider uppercase text-slate-400">
+                  Runs on
+                </label>
+                <div className="flex items-center gap-1">
+                  {([
+                    ['Daily', EVERY_DAY],
+                    ['Weekdays', WEEKDAYS],
+                    ['Weekends', WEEKENDS],
+                  ] as const).map(([label, days]) => {
+                    const active = sameDays(formData.daysOfWeek ?? [], [...days])
+                    return (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, daysOfWeek: [...days] })}
+                        className={`h-6 px-2 rounded text-[11px] font-medium transition cursor-pointer border ${
+                          active
+                            ? 'bg-blue-600/15 border-blue-600/30 text-blue-400'
+                            : 'bg-white/5 border-white/10 text-slate-500 hover:text-slate-300'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {DAYS.map(({ value, label }) => {
+                  const on = (formData.daysOfWeek ?? []).includes(value)
+                  return (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => toggleDay(value)}
+                      aria-pressed={on}
+                      className={`h-9 w-12 rounded-lg text-xs font-semibold transition cursor-pointer border ${
+                        on
+                          ? 'bg-blue-600 border-blue-600 text-white'
+                          : 'bg-white/5 border-white/10 text-slate-500 hover:text-slate-300 hover:bg-white/10'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+
+              {!formData.daysOfWeek?.length && (
+                <p className="text-xs text-amber-400 mt-2">
+                  Pick at least one day this trip runs.
+                </p>
+              )}
+            </div>
+
             <div className="flex gap-2 pt-1">
               <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold h-9 px-4 cursor-pointer">
                 {editingId ? 'Update Schedule' : 'Save Schedule'}
@@ -301,6 +405,9 @@ export default function SchedulesPage() {
                         : 'bg-white/5 border-white/10 text-slate-500'
                     }`}>
                       {schedule.status}
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      {describeDays(schedule.daysOfWeek)}
                     </span>
                   </div>
                   {/* Times + fare */}

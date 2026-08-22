@@ -9,10 +9,17 @@ const scheduleSchema = z.object({
   routeId: z.string().refine(v => ObjectId.isValid(v), 'Invalid route ID'),
   departureTime: z.string().min(1).max(20),
   arrivalTime: z.string().min(1).max(20),
-  fare: z.number().positive(),              
+  fare: z.number().positive(),
   driverName: z.string().min(1).max(120),
   vehicleNumber: z.string().min(1).max(50),
   status: z.enum(['active', 'inactive']),
+  // Which days this trip runs. 0 = Sunday, matching JS getDay(), so the value
+  // can be compared directly against $dayOfWeek - 1 in aggregation.
+  // Schedules created before this field existed have no value; those are
+  // treated as running every day rather than disappearing from the timetable.
+  daysOfWeek: z.array(z.number().int().min(0).max(6))
+    .min(1, 'Pick at least one day this trip runs')
+    .max(7),
 })
 
 const scheduleUpdateSchema = scheduleSchema.extend({
