@@ -1,51 +1,33 @@
 "use client"
 import { usePathname } from 'next/navigation'
+import CursorGridReveal from '@/components/CursorGridReveal'
+
 export default function FixedBackground() {
   const pathname = usePathname()
   const isDashboard = pathname?.startsWith('/dashboard')
   const isMap = pathname?.startsWith('/map')
-  const isResetPaasswordPages =
-  pathname === '/forgot-password' ||
-  pathname === '/reset-password'
+  const isPasswordPage =
+    pathname === '/forgot-password' ||
+    pathname === '/reset-password'
 
-  if (isDashboard || isMap || isResetPaasswordPages ) {
-    return (
-      <div className="fixed inset-0 -z-10 bg-slate-950 pointer-events-none" />
-    )
+  if (isDashboard || isMap || isPasswordPage) {
+    return <div className="fixed inset-0 -z-10 bg-slate-950 pointer-events-none" />
   }
 
-    return (
-      <div className="fixed inset-0 -z-10 bg-slate-950 pointer-events-none">
-        {/* Grid texture */}
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage:
-              'repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,0.03) 39px,rgba(255,255,255,0.03) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,0.03) 39px,rgba(255,255,255,0.03) 40px)',
-          }}
-        />
-        {/* Top-left glow */}
-        <div
-          className="absolute rounded-full"
-          style={{
-            width: 640,
-            height: 640,
-            background: 'radial-gradient(circle, rgba(37,99,235,0.15) 0%, transparent 70%)',
-            top: -160,
-            left: -160,
-          }}
-        />
-        {/* Bottom-right glow */}
-        <div
-          className="absolute rounded-full"
-          style={{
-            width: 480,
-            height: 480,
-            background: 'radial-gradient(circle, rgba(37,99,235,0.10) 0%, transparent 70%)',
-            bottom: -120,
-            right: -100,
-          }}
-        />
-      </div>
-    )
-  }
+  // Marketing pages: a soft directional wash as the base layer. On the landing
+  // page the old grid sits on top of it, revealed only around the cursor.
+  // The wash is also the fallback that reveal degrades to under reduced motion
+  // and on touch, so it stays regardless.
+  return (
+    <div className="fixed inset-0 -z-10 bg-slate-950 pointer-events-none overflow-hidden">
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            'linear-gradient(180deg, rgba(37,99,235,0.10) 0%, rgba(37,99,235,0.03) 22%, transparent 55%)',
+        }}
+      />
+      {pathname === '/' && <CursorGridReveal />}
+    </div>
+  )
+}
