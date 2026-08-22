@@ -162,3 +162,60 @@
 @media (prefers-reduced-motion: reduce) {
   .collapse-panel { transition: none; }
 }
+
+/* ── Landing motion ──────────────────────────────────────────────────────────
+   All native scroll-driven animation: no library, no scroll listeners, no
+   IntersectionObserver. Everything sits inside @supports so a browser without
+   animation-timeline renders the content plainly rather than blank, and inside
+   prefers-reduced-motion:no-preference so it is opt-out by default. */
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes rule-draw {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+
+    /* Children cascade by scroll position rather than by a timer, so the
+       stagger tracks the reader instead of running off without them. */
+    .reveal-stagger > * {
+      animation: rise-in both;
+      animation-timeline: view();
+      animation-range:
+        entry calc(8% + var(--i, 0) * 4%)
+        cover calc(26% + var(--i, 0) * 4%);
+    }
+
+    /* A hairline that draws itself under a section heading as it arrives.
+       Structural, not decorative: it marks where a section begins. */
+    .rule-draw {
+      transform-origin: left center;
+      animation: rule-draw both;
+      animation-timeline: view();
+      animation-range: entry 15% cover 35%;
+    }
+  }
+}
+
+/* Board rows settle one after another on mount, the way a solari board
+   cascades when it flips. Time-based, because this fires on load, not scroll. */
+@keyframes flap-in {
+  from { opacity: 0; transform: translateY(-6px) rotateX(-55deg); }
+  to   { opacity: 1; transform: translateY(0) rotateX(0); }
+}
+
+.flap-row {
+  transform-origin: top center;
+  animation: flap-in 420ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flap-row { animation: none; }
+}
