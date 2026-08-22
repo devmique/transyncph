@@ -114,6 +114,22 @@ export async function DELETE(request: NextRequest) {
 
     const db = await getDatabase()
 
+    // Refuse rather than orphan. Routes store terminal ids as strings, and the
+    // $lookup in the routes API preserves empty matches, so a dangling
+    // reference used to render as a blank cell instead of failing loudly.
+    const dependents = await db.collection('routes').countDocuments({
+      operatorId: payload.operatorId,
+      $or: [{ startTerminalId: id }, { endTerminalId: id }],
+    })
+    if (dependents > 0) {
+      return NextResponse.json(
+        {
+          error: `${dependents} route${dependents === 1 ? '' : 's'} still use${dependents === 1 ? 's' : ''} this terminal. Update ${dependents === 1 ? 'it' : 'them'} first.`,
+        },
+        { status: 409 }
+      )
+    }
+
     await db.collection('terminals').deleteOne({
       _id: new ObjectId(id),
       operatorId: payload.operatorId,

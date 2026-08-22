@@ -143,6 +143,21 @@ export async function DELETE(request: NextRequest) {
 
     const db = await getDatabase()
 
+    // Refuse rather than orphan. Deleting a route silently used to leave its
+    // schedules behind, still counting toward the dashboard's totals.
+    const dependents = await db.collection('schedules').countDocuments({
+      routeId: new ObjectId(id),
+      operatorId: payload.operatorId,
+    })
+    if (dependents > 0) {
+      return NextResponse.json(
+        {
+          error: `This route still has ${dependents} schedule${dependents === 1 ? '' : 's'}. Delete ${dependents === 1 ? 'it' : 'them'} first.`,
+        },
+        { status: 409 }
+      )
+    }
+
     await db.collection('routes').deleteOne({
       _id: new ObjectId(id),
       operatorId: payload.operatorId,
