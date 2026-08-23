@@ -6,7 +6,7 @@ import { Route, Schedule } from '@/types'
 import { Button } from '@/components/ui/button'
 import InputField from '@/components/ui/InputField'
 import { to12Hour, to24Hour } from '@/utils/format'
-import { useToast } from '@/components/ui/use-toast'
+import { useToast } from '@/hooks/use-toast'
 import { useApi } from '@/lib/useApi'
 
 // 0 = Sunday, matching JS getDay() and the daysOfWeek stored on a schedule.
@@ -196,10 +196,11 @@ export default function SchedulesPage() {
 
             {/* Route dropdown */}
             <div>
-              <label className="block text-xs font-medium tracking-wider uppercase text-slate-400 mb-1.5">
+              <label htmlFor="routeId" className="block text-xs font-medium tracking-wider uppercase text-slate-400 mb-1.5">
                 Route
               </label>
               <select
+                id="routeId"
                 value={formData.routeId}
                 onChange={(e) => setFormData({ ...formData, routeId: e.target.value })}
                 required
@@ -266,10 +267,11 @@ export default function SchedulesPage() {
                 required
               />
               <div>
-                <label className="block text-xs font-medium tracking-wider uppercase text-slate-400 mb-1.5">
+                <label htmlFor="status" className="block text-xs font-medium tracking-wider uppercase text-slate-400 mb-1.5">
                   Status
                 </label>
                 <select
+                  id="status"
                   value={formData.status}
                   onChange={(e) => setFormData({ ...formData, status: e.target.value as 'active' | 'inactive' })}
                   required
@@ -406,6 +408,7 @@ export default function SchedulesPage() {
                 </div>
                 <div className="flex items-center gap-1">
                   <Button variant="ghost" onClick={() => handleCopyDriverLink(schedule._id)}
+                    aria-label={`Copy driver link for ${schedule.vehicleNumber}`}
                     className="w-8 h-8 p-0 text-slate-500 hover:text-emerald-400 hover:bg-emerald-500/10 border border-transparent hover:border-emerald-500/10 cursor-pointer">
                     {copiedId === schedule._id ? (
                       <Check className="w-3.5 h-3.5" />
@@ -414,10 +417,12 @@ export default function SchedulesPage() {
                     )}
                   </Button>
                   <Button variant="ghost" onClick={() => handleEdit(schedule)}
+                    aria-label={`Edit schedule for ${schedule.vehicleNumber}`}
                     className="w-8 h-8 p-0 text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 border border-transparent hover:border-blue-500/10 cursor-pointer">
                     <Edit2 className="w-3.5 h-3.5" />
                   </Button>
                   <Button variant="ghost" onClick={() => schedule._id && setDeletingId(schedule._id)}
+                    aria-label={`Delete schedule for ${schedule.vehicleNumber}`}
                     className="w-8 h-8 p-0 text-slate-500 hover:text-red-400 hover:bg-red-500/10 border border-transparent hover:border-red-500/10 cursor-pointer">
                     <Trash2 className="w-3.5 h-3.5" />
                   </Button>

@@ -28,6 +28,9 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog'
+// Every toast() in the dashboard (driver links, settings) was a no-op without
+// this - the provider renders nothing unless the viewport is mounted.
+import { Toaster } from '@/components/ui/toaster'
 
 export default function DashboardLayout({
   children,
@@ -220,6 +223,8 @@ export default function DashboardLayout({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Toaster />
     </div>
   )
 }

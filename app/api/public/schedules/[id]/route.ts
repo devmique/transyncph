@@ -16,11 +16,15 @@ export async function GET(
     if (!schedule) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     
     let companyName = undefined
+    // A schedule stores routeId, never routeNumber, so the projection above can
+    // never supply it - it has to come from the route the driver page names.
+    let routeNumber = undefined
     if (schedule?.routeId) {
       const route = await db.collection('routes').findOne(
         { _id: new ObjectId(schedule.routeId) },
-        { projection: { operatorId: 1 } }
+        { projection: { operatorId: 1, routeNumber: 1 } }
       )
+      routeNumber = route?.routeNumber
       if(route?.operatorId) {
          const operator = await db.collection('operators').findOne(
       { _id: new ObjectId(route.operatorId) },
@@ -29,8 +33,8 @@ export async function GET(
         companyName = operator?.companyName
       }
     }
-    
-    return NextResponse.json({ ...schedule, _id: schedule._id.toString(), companyName })
+
+    return NextResponse.json({ ...schedule, _id: schedule._id.toString(), routeNumber, companyName })
   } catch {
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }

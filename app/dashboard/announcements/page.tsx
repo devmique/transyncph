@@ -121,10 +121,11 @@ export default function AnnouncementsPage() {
               required
             />
             <div>
-              <label className="block text-xs font-medium tracking-wider uppercase text-slate-400 mb-1.5">
+              <label htmlFor="message" className="block text-xs font-medium tracking-wider uppercase text-slate-400 mb-1.5">
                 Message
               </label>
               <textarea
+                id="message"
                 value={formData.message}
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                 required
@@ -135,8 +136,9 @@ export default function AnnouncementsPage() {
             </div>
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium tracking-wider uppercase text-slate-400 mb-1.5">Type</label>
+                <label htmlFor="type" className="block text-xs font-medium tracking-wider uppercase text-slate-400 mb-1.5">Type</label>
                 <select
+                  id="type"
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value as Announcement['type'] })}
                   required

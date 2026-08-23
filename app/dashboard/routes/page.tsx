@@ -155,10 +155,11 @@ export default function RoutesPage() {
             {/* Terminal dropdowns — drive startPoint/endPoint automatically */}
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium tracking-wider uppercase text-slate-400 mb-1.5">
+                <label htmlFor="startTerminalId" className="block text-xs font-medium tracking-wider uppercase text-slate-400 mb-1.5">
                   Start Terminal
                 </label>
                 <select
+                  id="startTerminalId"
                   value={formData.startTerminalId ?? ''}
                   onChange={(e) => {
                     const t = terminals.find(t => t._id === e.target.value)
@@ -181,10 +182,11 @@ export default function RoutesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium tracking-wider uppercase text-slate-400 mb-1.5">
+                <label htmlFor="endTerminalId" className="block text-xs font-medium tracking-wider uppercase text-slate-400 mb-1.5">
                   End Terminal
                 </label>
                 <select
+                  id="endTerminalId"
                   value={formData.endTerminalId ?? ''}
                   onChange={(e) => {
                     const t = terminals.find(t => t._id === e.target.value)
