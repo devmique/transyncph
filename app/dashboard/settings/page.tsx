@@ -11,6 +11,7 @@ import EditProfileModal from '@/components/settings/EditProfileModal'
 import ChangePasswordModal from '@/components/settings/ChangePasswordModal'
 import DeleteAccountModal from '@/components/settings/DeleteAccountModal'
 import { OperatorProfile } from '@/types'
+import { useApi } from '@/lib/useApi'
 
 type ActiveModal = 'editProfile' | 'changePassword' | 'deleteAccount' | null
 
@@ -19,8 +20,9 @@ export default function SettingsPage() {
   const router = useRouter()
   const { toast } = useToast()
 
-  const [profile, setProfile] = useState<OperatorProfile | null>(null)
-  const [loadingProfile, setLoadingProfile] = useState(true)
+  const { data, isLoading: loadingProfile, error: fetchError, mutate } =
+    useApi<{ operator: OperatorProfile } | null>('/api/operator/profile', null)
+  const profile = data?.operator ?? null
   const [modal, setModal] = useState<ActiveModal>(null)
 
   function showToast(message: string, type: 'success' | 'error') {
@@ -32,23 +34,13 @@ export default function SettingsPage() {
   }
 
   useEffect(() => {
-    async function fetchProfile() {
-      try {
-        const res = await fetch('/api/operator/profile')
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error)
-        setProfile(data.operator)
-      } catch {
-        showToast('Failed to load profile', 'error')
-      } finally {
-        setLoadingProfile(false)
-      }
-    }
-    fetchProfile()
-  }, [])
+    if (fetchError) showToast('Failed to load profile', 'error')
+  }, [fetchError])
 
   function handleProfileSaved(updated: OperatorProfile) {
-    setProfile(updated)
+    // Write straight into the SWR cache instead of refetching - the PUT already
+    // returned the saved record.
+    mutate({ operator: updated }, { revalidate: false })
     const stored = localStorage.getItem('operator')
     if (stored) {
       const parsed = JSON.parse(stored)

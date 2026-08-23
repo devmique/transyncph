@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Megaphone, MapPin, Clock, Building2 } from 'lucide-react'
 import { safeDateToMs, formatTimeAgo } from '@/utils/format'
 import { ActivityItem, ActivityKind, AnyDoc } from '@/types'
+import { useApi } from '@/lib/useApi'
 
 /* Icon and wording per record type. Colour deliberately stays neutral - the
    dashboard reserves colour for status, so four accent hues here would read as
@@ -37,70 +38,53 @@ function dayLabel(tsMs: number): string {
 }
 
 export default function ActivityPage() {
-  const [items, setItems]     = useState<ActivityItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError]     = useState('')
-  const [filter, setFilter]   = useState<ActivityKind | 'all'>('all')
+  const [filter, setFilter] = useState<ActivityKind | 'all'>('all')
 
-  useEffect(() => {
-    let cancelled = false
+  // Four keys rather than one Promise.all: SWR runs them in parallel and caches
+  // each under the key its own page already uses, so arriving here from Routes
+  // or Terminals is instant instead of a fresh skeleton.
+  const ann = useApi<AnyDoc[]>('/api/announcements', [])
+  const rts = useApi<AnyDoc[]>('/api/routes', [])
+  const sch = useApi<AnyDoc[]>('/api/schedules', [])
+  const trm = useApi<AnyDoc[]>('/api/terminals', [])
 
-    const load = async () => {
-      setLoading(true)
-      setError('')
-      try {
-        const fetchJson = async (url: string) => {
-          const res = await fetch(url)
-          const data = await res.json()
-          if (!res.ok) throw new Error(data.error || `Failed: ${url}`)
-          return Array.isArray(data) ? (data as AnyDoc[]) : []
-        }
+  const loading = ann.isLoading || rts.isLoading || sch.isLoading || trm.isLoading
+  const error = ann.error || rts.error || sch.error || trm.error
 
-        const [announcements, routes, schedules, terminals] = await Promise.all([
-          fetchJson('/api/announcements'),
-          fetchJson('/api/routes'),
-          fetchJson('/api/schedules'),
-          fetchJson('/api/terminals'),
-        ])
+  const items = useMemo(() => {
+    const announcements = ann.data
+    const routes = rts.data
+    const schedules = sch.data
+    const terminals = trm.data
+    const entries: ActivityItem[] = []
 
-        const entries: ActivityItem[] = []
-
-        /* One shape per collection. Records with no usable timestamp are
-           skipped rather than dated to the epoch. */
-        const push = (
-          docs: AnyDoc[],
-          kind: ActivityKind,
-          idOf: (d: AnyDoc) => string,
-          labelOf: (d: AnyDoc) => string,
-        ) => {
-          for (const d of docs) {
-            const tsMs = safeDateToMs(d.updatedAt ?? d.createdAt)
-            if (tsMs === null) continue
-            entries.push({ key: `${kind}-${idOf(d)}-${tsMs}`, kind, label: labelOf(d), time: formatTimeAgo(tsMs), tsMs })
-          }
-        }
-
-        push(announcements, 'announcement', d => String(d._id ?? d.title), d => `Announcement: ${String(d.title ?? 'Untitled')}`)
-        push(routes, 'route', d => String(d._id), d => `Route updated: ${String(d.routeNumber ?? '—')}`)
-        push(schedules, 'schedule', d => String(d._id), d =>
-          d.route?.routeNumber
-            ? `Schedule updated: ${d.route.routeNumber} · ${d.route.startPoint} → ${d.route.endPoint}`
-            : 'Schedule updated: —',
-        )
-        push(terminals, 'terminal', d => String(d._id), d => `Terminal updated: ${String(d.name ?? 'Terminal')}`)
-
-        entries.sort((a, b) => b.tsMs - a.tsMs)
-        if (!cancelled) setItems(entries)
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load activity')
-      } finally {
-        if (!cancelled) setLoading(false)
+    /* One shape per collection. Records with no usable timestamp are
+       skipped rather than dated to the epoch. */
+    const push = (
+      docs: AnyDoc[],
+      kind: ActivityKind,
+      idOf: (d: AnyDoc) => string,
+      labelOf: (d: AnyDoc) => string,
+    ) => {
+      for (const d of docs) {
+        const tsMs = safeDateToMs(d.updatedAt ?? d.createdAt)
+        if (tsMs === null) continue
+        entries.push({ key: `${kind}-${idOf(d)}-${tsMs}`, kind, label: labelOf(d), time: formatTimeAgo(tsMs), tsMs })
       }
     }
 
-    load()
-    return () => { cancelled = true }
-  }, [])
+    push(announcements, 'announcement', d => String(d._id ?? d.title), d => `Announcement: ${String(d.title ?? 'Untitled')}`)
+    push(routes, 'route', d => String(d._id), d => `Route updated: ${String(d.routeNumber ?? '—')}`)
+    push(schedules, 'schedule', d => String(d._id), d =>
+      d.route?.routeNumber
+        ? `Schedule updated: ${d.route.routeNumber} · ${d.route.startPoint} → ${d.route.endPoint}`
+        : 'Schedule updated: —',
+    )
+    push(terminals, 'terminal', d => String(d._id), d => `Terminal updated: ${String(d.name ?? 'Terminal')}`)
+
+    entries.sort((a, b) => b.tsMs - a.tsMs)
+    return entries
+  }, [ann.data, rts.data, sch.data, trm.data])
 
   const counts = useMemo(() => {
     const c = { announcement: 0, route: 0, schedule: 0, terminal: 0 } as Record<ActivityKind, number>

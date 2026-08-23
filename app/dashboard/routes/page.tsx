@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Plus, Trash2, MapPin, Pencil } from 'lucide-react'
 import { Route, Terminal } from '@/types'
 import { Button } from '@/components/ui/button'
 import InputField from '@/components/ui/InputField'
+import { useApi } from '@/lib/useApi'
 
 const empty: Route = {
   routeNumber: '',
@@ -17,9 +18,10 @@ const empty: Route = {
 }
 
 export default function RoutesPage() {
-  const [routes, setRoutes] = useState<Route[]>([])
-  const [terminals, setTerminals] = useState<Terminal[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: routes, isLoading: loading, error: fetchError, mutate } =
+    useApi<Route[]>('/api/routes', [])
+  const { data: terminals } = useApi<Terminal[]>('/api/terminals', [])
+  // Mutation failures only - list fetch failures arrive as fetchError.
   const [error, setError] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [formData, setFormData] = useState<Route>(empty)
@@ -53,27 +55,6 @@ export default function RoutesPage() {
     setFormData(empty)
   }
 
-  useEffect(() => {
-    fetchRoutes()
-    fetch('/api/terminals')
-      .then(r => r.json())
-      .then(d => setTerminals(Array.isArray(d) ? d : []))
-  }, [])
-
-  const fetchRoutes = async () => {
-    try {
-      setError('')
-      const res = await fetch('/api/routes')
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch routes')
-      setRoutes(Array.isArray(data) ? data : [])
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to fetch routes')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const cleanedRouteNumber   = formData.routeNumber.trim()
@@ -105,7 +86,7 @@ export default function RoutesPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to save route')
       closeForm()
-      fetchRoutes()
+      mutate()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save route')
     }
@@ -118,7 +99,7 @@ export default function RoutesPage() {
       const res = await fetch(`/api/routes?id=${deletingId}`, { method: 'DELETE' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to delete route')
-      fetchRoutes()
+      mutate()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to delete route')
     } finally {
@@ -144,7 +125,7 @@ export default function RoutesPage() {
         </Button>
       </div>
 
-      {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
+      {(error || fetchError) && <p className="text-sm text-red-400 mb-4">{error || fetchError}</p>}
 
       {formOpen && (
         <div className="bg-slate-900/60 border border-white/8 rounded-xl p-6 mb-6">
