@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Plus, Trash2, Megaphone, Pencil } from 'lucide-react'
 import { Announcement } from '@/types'
 import { Button } from '@/components/ui/button'
 import InputField from '@/components/ui/InputField'
+import { useApi } from '@/lib/useApi'
 
 const empty: Announcement = { title: '', message: '', type: 'info', affectedRoutes: [] }
 
@@ -15,8 +16,9 @@ const typeMeta = {
 }
 
 export default function AnnouncementsPage() {
-  const [announcements, setAnnouncements] = useState<Announcement[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: announcements, isLoading: loading, error: fetchError, mutate } =
+    useApi<Announcement[]>('/api/announcements', [])
+  // Mutation failures only - list fetch failures arrive as fetchError.
   const [error, setError] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [formData, setFormData] = useState<Announcement>(empty)
@@ -47,19 +49,6 @@ export default function AnnouncementsPage() {
     setFormData(empty)
   }
 
-  useEffect(() => { fetchAnnouncements() }, [])
-
-  const fetchAnnouncements = async () => {
-    try {
-      setError('')
-      const res = await fetch('/api/announcements')
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch announcements')
-      setAnnouncements(Array.isArray(data) ? data : [])
-    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to fetch announcements') }
-    finally { setLoading(false) }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const cleanedTitle = formData.title.trim()
@@ -84,7 +73,7 @@ export default function AnnouncementsPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to save announcement')
       closeForm()
-      fetchAnnouncements()
+      mutate()
     } catch (e) { setError(e instanceof Error ? e.message : 'Failed to save announcement') }
   }
 
@@ -97,7 +86,7 @@ export default function AnnouncementsPage() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to delete announcement')
-      fetchAnnouncements()
+      mutate()
     } catch (e) { setError(e instanceof Error ? e.message : 'Failed to delete announcement') }
     finally { setDeletingId(null) }
   }
@@ -117,7 +106,7 @@ export default function AnnouncementsPage() {
           New Announcement
         </Button>
       </div>
-      {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
+      {(error || fetchError) && <p className="text-sm text-red-400 mb-4">{error || fetchError}</p>}
 
       {formOpen && (
         <div className="bg-slate-900/60 border border-white/8 rounded-xl p-6 mb-6">

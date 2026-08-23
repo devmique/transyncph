@@ -11,6 +11,7 @@ import {
 import { AnyDoc, LiveBus } from '@/types'
 import { useAuth } from '@/context/AuthContext'
 import { getSocket } from '@/lib/socket'
+import { useApi } from '@/lib/useApi'
 import {
   ChartCard, ServiceCurve, WeeklyCoverage, FleetDonut, RouteLoadBars,
   RUNNING, IDLE, OFF,
@@ -84,12 +85,18 @@ type RouteRow = {
 export default function DashboardPage() {
   const { operator } = useAuth()
 
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  // Three keys rather than one Promise.all: SWR still runs them in parallel, but
+  // each is cached under the same key the Routes/Schedules/Terminals pages use,
+  // so navigating between them no longer refetches or re-skeletons.
+  const routeApi = useApi<AnyDoc[]>('/api/routes', [])
+  const scheduleApi = useApi<AnyDoc[]>('/api/schedules', [])
+  const terminalApi = useApi<AnyDoc[]>('/api/terminals', [])
 
-  const [schedules, setSchedules] = useState<AnyDoc[]>([])
-  const [routeDocs, setRouteDocs] = useState<AnyDoc[]>([])
-  const [terminals, setTerminals] = useState<AnyDoc[]>([])
+  const routeDocs = routeApi.data
+  const schedules = scheduleApi.data
+  const terminals = terminalApi.data
+  const loading = routeApi.isLoading || scheduleApi.isLoading || terminalApi.isLoading
+  const error = routeApi.error || scheduleApi.error || terminalApi.error
   const [liveBuses, setLiveBuses] = useState<LiveBus[]>([])
 
   // Null until mounted so the server and the first client render agree; a clock
@@ -126,43 +133,6 @@ export default function DashboardPage() {
       socket.off('bus:removed')
     }
   }, [operator?.companyName])
-
-  /* ── data ── */
-  useEffect(() => {
-    let cancelled = false
-
-    const load = async () => {
-      setLoading(true)
-      setError('')
-      try {
-        const fetchJson = async (url: string) => {
-          const res = await fetch(url)
-          const data = await res.json()
-          if (!res.ok) throw new Error(data.error || `Failed: ${url}`)
-          return Array.isArray(data) ? (data as AnyDoc[]) : []
-        }
-
-        const [routesRaw, schedulesRaw, terminalsRaw] = await Promise.all([
-          fetchJson('/api/routes'),
-          fetchJson('/api/schedules'),
-          fetchJson('/api/terminals'),
-        ])
-
-        if (!cancelled) {
-          setRouteDocs(routesRaw)
-          setSchedules(schedulesRaw)
-          setTerminals(terminalsRaw)
-        }
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to load dashboard')
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    load()
-    return () => { cancelled = true }
-  }, [])
 
   /* ── derived ── */
 

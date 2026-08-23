@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Plus, Trash2, Edit2, Clock, Copy, Check } from 'lucide-react'
 import { Route, Schedule } from '@/types'
 import { Button } from '@/components/ui/button'
 import InputField from '@/components/ui/InputField'
 import { to12Hour, to24Hour } from '@/utils/format'
 import { useToast } from '@/components/ui/use-toast'
+import { useApi } from '@/lib/useApi'
 
 // 0 = Sunday, matching JS getDay() and the daysOfWeek stored on a schedule.
 const DAYS = [
@@ -48,36 +49,16 @@ const empty: Schedule = {
 
 export default function SchedulesPage() {
   const { toast } = useToast()
-  const [schedules, setSchedules] = useState<Schedule[]>([])
-  const [routes, setRoutes] = useState<Route[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: schedules, isLoading: loading, error: fetchError, mutate } =
+    useApi<Schedule[]>('/api/schedules', [])
+  const { data: routes } = useApi<Route[]>('/api/routes', [])
+  // Mutation failures only - list fetch failures arrive as fetchError.
   const [error, setError] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [formData, setFormData] = useState<Schedule>(empty)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetchSchedules()
-    fetch('/api/routes')
-      .then(r => r.json())
-      .then(d => setRoutes(Array.isArray(d) ? d : []))
-  }, [])
-
-  const fetchSchedules = async () => {
-    try {
-      setError('')
-      const res = await fetch('/api/schedules')
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch schedules')
-      setSchedules(Array.isArray(data) ? data : [])
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to fetch schedules')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -110,7 +91,7 @@ export default function SchedulesPage() {
       setFormData(empty)
       setEditingId(null)
       setFormOpen(false)
-      fetchSchedules()
+      mutate()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save schedule')
     }
@@ -173,7 +154,7 @@ export default function SchedulesPage() {
       const res = await fetch(`/api/schedules?id=${deletingId}`, { method: 'DELETE' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to delete schedule')
-      fetchSchedules()
+      mutate()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to delete schedule')
     } finally {
@@ -203,7 +184,7 @@ export default function SchedulesPage() {
         </Button>
       </div>
 
-      {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
+      {(error || fetchError) && <p className="text-sm text-red-400 mb-4">{error || fetchError}</p>}
 
       {/* ── FORM ── */}
       {formOpen && (

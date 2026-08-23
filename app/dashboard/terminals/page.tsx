@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import dynamic from 'next/dynamic'
 import { Plus, Trash2, Building2, Pencil, Crosshair, MapPin } from 'lucide-react'
 import { Terminal } from '@/types'
 import { Button } from '@/components/ui/button'
 import InputField from '@/components/ui/InputField'
+import { useApi } from '@/lib/useApi'
 
 // Leaflet touches `window` at import time, so it cannot be server-rendered.
 // Same treatment as the public map in app/map/page.tsx.
@@ -28,8 +29,9 @@ type TerminalForm = {
 const empty: TerminalForm = { name: '', location: '', lat: '', lng: '', facilities: [] }
 
 export default function TerminalsPage() {
-  const [terminals, setTerminals] = useState<Terminal[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: terminals, isLoading: loading, error: fetchError, mutate } =
+    useApi<Terminal[]>('/api/terminals', [])
+  // Mutation and validation failures only - list fetch failures arrive as fetchError.
   const [error, setError] = useState('')
   const [formOpen, setFormOpen] = useState(false)
   const [formData, setFormData] = useState<TerminalForm>(empty)
@@ -96,19 +98,6 @@ export default function TerminalsPage() {
     )
   }
 
-  useEffect(() => { fetchTerminals() }, [])
-
-  const fetchTerminals = async () => {
-    try {
-      setError('')
-      const res = await fetch('/api/terminals')
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch terminals')
-      setTerminals(Array.isArray(data) ? data : [])
-    } catch (e) { setError(e instanceof Error ? e.message : 'Failed to fetch terminals') }
-    finally { setLoading(false) }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const cleanedName = formData.name.trim()
@@ -151,7 +140,7 @@ export default function TerminalsPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to save terminal')
       closeForm()
-      fetchTerminals()
+      mutate()
     } catch (e) { setError(e instanceof Error ? e.message : 'Failed to save terminal') }
   }
 
@@ -162,7 +151,7 @@ export default function TerminalsPage() {
       const res = await fetch(`/api/terminals?id=${deletingId}`, { method: 'DELETE' })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to delete terminal')
-      fetchTerminals()
+      mutate()
     } catch (e) { setError(e instanceof Error ? e.message : 'Failed to delete terminal') }
     finally { setDeletingId(null) }
   }
@@ -182,7 +171,7 @@ export default function TerminalsPage() {
           Add Terminal
         </Button>
       </div>
-      {error && <p className="text-sm text-red-400 mb-4">{error}</p>}
+      {(error || fetchError) && <p className="text-sm text-red-400 mb-4">{error || fetchError}</p>}
 
       {formOpen && (
         <div className="bg-slate-900/60 border border-white/8 rounded-xl p-6 mb-6">
