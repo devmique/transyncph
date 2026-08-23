@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import DemoModal from '@/components/demo-modal'
 import HeroVideoCard from '@/components/HeroVideoCard'
-import DepartureBoard from '@/components/landing/DepartureBoard'
+import NetworkMapVisual from '@/components/landing/NetworkMapVisual'
 import { useScrollReveal } from '@/hooks/useScrollReveal'
 
 /* Pricing tiers. Single source of truth for the pricing section.
@@ -185,16 +185,16 @@ export default function Home() {
       </nav>
 
       {/* ── HERO ──
-          The board is the argument. Everything the copy claims about being live
-          is visible three inches to the right of the claim. */}
+          A schematic of a network rather than the live map. It is static, so it
+          paints with the HTML instead of waiting on tiles, sockets, or an API. */}
       <section className="relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 sm:pt-20 lg:pt-24 pb-16 sm:pb-24">
           <div className="grid lg:grid-cols-12 gap-10 lg:gap-14 items-center">
 
             <div className="lg:col-span-5" data-reveal="hero">
               <h1 className="text-4xl sm:text-5xl lg:text-[3.4rem] font-bold leading-[1.05] tracking-tight text-slate-100 mb-6">
-                Your whole timetable,{' '}
-                <span className="text-blue-500">live.</span>
+                Your whole network,{' '}
+                <span className="text-blue-500">mapped.</span>
               </h1>
               <p className="text-base sm:text-lg font-light text-slate-400 leading-relaxed mb-8 max-w-md">
                 Manage routes, schedules, and terminals in one place. Every trip you
@@ -218,8 +218,8 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="lg:col-span-7 min-w-0">
-              <DepartureBoard />
+            <div className="lg:col-span-7 min-w-0" data-reveal>
+              <NetworkMapVisual />
             </div>
           </div>
         </div>

@@ -269,6 +269,120 @@
   .flap-row { animation: none; }
 }
 
+/* ── Landing hero network map ─────────────────────────────────────────────── */
+
+/* Terminal nodes breathe. Scale, so it stays on the compositor. */
+@keyframes netmap-ping {
+  0%      { transform: scale(0.82); opacity: 0.55; }
+  70%     { transform: scale(1.5);  opacity: 0; }
+  100%    { transform: scale(1.5);  opacity: 0; }
+}
+
+.netmap-ping {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: netmap-ping 3.6s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+/* The network draws itself onto the map on load: the ground is already there,
+   then the lines run out from their terminals and the stops land behind them.
+   Time-based rather than scroll-driven, because this plays on refresh while
+   the hero is already in view.
+
+   Each path carries pathLength="1", so one dash covers the whole line however
+   long it actually is and the offset can be animated in normalised units. */
+@keyframes netmap-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+.netmap-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: netmap-draw var(--dur, 1000ms) cubic-bezier(0.4, 0, 0.25, 1) forwards;
+  animation-delay: var(--delay, 0ms);
+}
+
+.netmap-draw-corridor { --dur: 1300ms; --delay: 150ms; }
+.netmap-draw-feeder   { --dur: 900ms;  --delay: 250ms; }
+.netmap-draw-spur     { --dur: 700ms;  --delay: 320ms; }
+
+/* Terminals and stops arrive as the line reaches them. */
+@keyframes netmap-pop {
+  from { opacity: 0; transform: scale(0.35); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+.netmap-pop {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: netmap-pop 420ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  animation-delay: calc(var(--d, 0) * 1ms);
+}
+
+/* Labels fade only. They already carry a transform for their anchor, so
+   animating transform here would fight it. */
+@keyframes netmap-label-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.netmap-label {
+  animation: netmap-label-in 400ms ease-out backwards;
+  animation-delay: calc(var(--d, 0) * 1ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .netmap-draw {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+  .netmap-pop,
+  .netmap-label { animation: none; }
+}
+
+/* The bus rides the same path data the corridor is drawn from. Hidden
+   entirely where offset-path is unsupported, since without it they would
+   pile up at the origin. */
+.netmap-bus { opacity: 0; }
+
+@supports (offset-path: path('M0 0 L1 1')) {
+  @keyframes netmap-run {
+    0%   { offset-distance: 0%;   opacity: 0; }
+    9%   { opacity: 1; }
+    91%  { opacity: 1; }
+    100% { offset-distance: 100%; opacity: 0; }
+  }
+
+  .netmap-bus {
+    offset-rotate: 0deg;
+    animation: netmap-run 11s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* Both pull away only once their line has finished drawing. */
+  .netmap-bus-main {
+    offset-path: path('M150 96 C 174 126 154 150 178 168 C 206 189 236 170 258 184 C 276 195 286 190 300 200 C 328 220 322 244 348 254 C 376 265 388 248 416 252 C 446 256 456 272 480 276');
+    animation-delay: 1.7s;
+  }
+  .netmap-bus-feeder {
+    offset-path: path('M168 330 C 198 322 190 296 210 280 C 232 262 232 248 250 238 C 268 228 288 216 300 200');
+    animation-duration: 7s;
+    animation-delay: 2.2s;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .netmap-bus {
+      animation: none;
+      opacity: 1;
+      offset-distance: 58%;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .netmap-ping { animation: none; }
+}
+
 /* ── Leaflet Dark Glassmorphism Tooltip Overrides ─────────────────────────── */
 .leaflet-tooltip.custom-map-tooltip {
   background: transparent !important;
