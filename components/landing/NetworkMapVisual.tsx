@@ -49,16 +49,6 @@ export default function NetworkMapVisual() {
           <p className="text-[10px] font-mono font-medium uppercase tracking-[0.22em] text-slate-500">
             Network map
           </p>
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-2">
-              <span className="h-[3px] w-5 rounded-full bg-blue-400" />
-              <span className="text-[10px] font-mono tracking-wide text-slate-500">Corridor</span>
-            </span>
-            <span className="flex items-center gap-2">
-              <span className="h-[3px] w-5 rounded-full bg-slate-600" />
-              <span className="text-[10px] font-mono tracking-wide text-slate-500">Feeder</span>
-            </span>
-          </div>
         </div>
 
         {/* ── Map plate ── */}
