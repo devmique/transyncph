@@ -5,10 +5,11 @@ import Link from 'next/link'
 import {
   MapPin, Search, Clock, Bus,
   Building2, Ticket, Info, AlertTriangle, Bell, X, ChevronDown,
-  ArrowLeft,
+  ChevronLeft, ChevronRight, ArrowLeft,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { getSocket } from '@/lib/socket'
+import { usePagination } from '@/hooks/usePagination'
 import { Terminal, Route, Announcement, LiveBus } from '@/types'
 import dynamic from 'next/dynamic'
 
@@ -35,28 +36,48 @@ interface PaginationProps {
   total: number
   onPrev: () => void
   onNext: () => void
-  label?: string
+  /** How many items the filter matched, and what to call them. The component
+   *  owns the wording so all three lists read the same way. */
+  count: number
+  noun: string
 }
 
-function Pagination({ page, total, onPrev, onNext, label }: PaginationProps) {
+const arrowClass =
+  'h-8 w-8 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 ' +
+  'text-slate-400 transition cursor-pointer ' +
+  'hover:bg-blue-600/15 hover:border-blue-600/30 hover:text-blue-400 ' +
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600/50 ' +
+  'disabled:opacity-25 disabled:cursor-not-allowed disabled:hover:bg-white/5 ' +
+  'disabled:hover:border-white/10 disabled:hover:text-slate-400'
+
+function Pagination({ page, total, onPrev, onNext, count, noun }: PaginationProps) {
   if (total <= 1) return null
   return (
-    <div className="flex items-center justify-between pt-2 border-t border-white/5">
-      {label && <p className="text-xs text-slate-600">{label}</p>}
-      <div className="flex gap-1.5 ml-auto">
+    <div className="flex items-center justify-between gap-3 pt-3 mt-1 border-t border-white/5">
+      {/* Tabular figures so the counter does not jitter as digits change. */}
+      <p className="text-xs text-slate-600 font-mono tabular-nums">
+        <span className="text-slate-300">{page}</span>
+        <span className="mx-1">/</span>
+        {total}
+        <span className="mx-1.5 text-slate-700">·</span>
+        <span className="font-sans">{count} {noun}</span>
+      </p>
+      <div className="flex gap-1.5 shrink-0">
         <button
           onClick={onPrev}
           disabled={page === 1}
-          className="h-6 px-2.5 text-xs bg-white/5 border border-white/10 text-slate-400 rounded-md hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition"
+          aria-label={`Previous page of ${noun}`}
+          className={arrowClass}
         >
-          ←
+          <ChevronLeft className="w-4 h-4" aria-hidden />
         </button>
         <button
           onClick={onNext}
-          disabled={page === total}
-          className="h-6 px-2.5 text-xs bg-white/5 border border-white/10 text-slate-400 rounded-md hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition"
+          disabled={page >= total}
+          aria-label={`Next page of ${noun}`}
+          className={arrowClass}
         >
-          →
+          <ChevronRight className="w-4 h-4" aria-hidden />
         </button>
       </div>
     </div>
@@ -97,10 +118,7 @@ export default function MapPage() {
   const [filteredRoutes,       setFilteredRoutes]       = useState<Route[]>([])
   const [selectedTerminal,     setSelectedTerminal]     = useState<Terminal | null>(null)
   const [expandedRouteId,      setExpandedRouteId]      = useState<string | null>(null)
-  const [currentPage,          setCurrentPage]          = useState(1)
   const [terminalSearch,       setTerminalSearch]       = useState('')
-  const [terminalPage,         setTerminalPage]         = useState(1)
-  const [announcementPage,     setAnnouncementPage]     = useState(1)
   const [liveBuses,            setLiveBuses]            = useState<Map<string, LiveBus>>(new Map())
   const [activeTab,            setActiveTab]            = useState<'routes' | 'terminals' | 'alerts'>('routes')
 
@@ -154,18 +172,13 @@ export default function MapPage() {
     t.location.toLowerCase().includes(terminalSearch.toLowerCase())
   )
 
-  const totalPages             = Math.ceil(filteredRoutes.length    / ROUTES_PER_PAGE)
-  const totalTerminalPages     = Math.ceil(filteredTerminals.length / TERMINALS_PER_PAGE)
-  const totalAnnouncementPages = Math.ceil(announcements.length     / ANNOUNCEMENTS_PER_PAGE)
-
-  const paginatedRoutes        = filteredRoutes.slice(   (currentPage      - 1) * ROUTES_PER_PAGE,        currentPage      * ROUTES_PER_PAGE)
-  const paginatedTerminals     = filteredTerminals.slice((terminalPage     - 1) * TERMINALS_PER_PAGE,     terminalPage     * TERMINALS_PER_PAGE)
-  const paginatedAnnouncements = announcements.slice(    (announcementPage - 1) * ANNOUNCEMENTS_PER_PAGE, announcementPage * ANNOUNCEMENTS_PER_PAGE)
+  const routePages        = usePagination(filteredRoutes,    ROUTES_PER_PAGE)
+  const terminalPages     = usePagination(filteredTerminals, TERMINALS_PER_PAGE)
+  const announcementPages = usePagination(announcements,     ANNOUNCEMENTS_PER_PAGE)
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleSearch = (query: string) => {
     setSearchQuery(query)
-    setCurrentPage(1)
     setExpandedRouteId(null)
     if (!query.trim()) { setFilteredRoutes(routes); return }
     const q = query.toLowerCase()
@@ -302,7 +315,7 @@ export default function MapPage() {
                   </div>
                 ) : (
                   <>
-                    {paginatedRoutes.map(route => {
+                    {routePages.pageItems.map(route => {
                       const isExpanded = expandedRouteId === route._id
                       const schedules  = route.schedules ?? []
                       const minFare    = schedules.length > 0
@@ -397,11 +410,12 @@ export default function MapPage() {
 
                     <div className="pt-1">
                       <Pagination
-                        page={currentPage}
-                        total={totalPages}
-                        onPrev={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        onNext={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        label={`${currentPage} / ${totalPages} · ${filteredRoutes.length} routes`}
+                        page={routePages.page}
+                        total={routePages.total}
+                        onPrev={routePages.prev}
+                        onNext={routePages.next}
+                        count={filteredRoutes.length}
+                        noun="routes"
                       />
                     </div>
                   </>
@@ -418,7 +432,7 @@ export default function MapPage() {
                     type="text"
                     placeholder="Filter terminals..."
                     value={terminalSearch}
-                    onChange={e => { setTerminalSearch(e.target.value); setTerminalPage(1) }}
+                    onChange={e => setTerminalSearch(e.target.value)}
                     className="w-full pl-7 pr-3 h-8 bg-white/5 border border-white/10 rounded-lg text-slate-100 text-xs placeholder:text-slate-600 focus:outline-none focus:border-blue-600/60 transition"
                   />
                 </div>
@@ -434,7 +448,7 @@ export default function MapPage() {
                   </div>
                 ) : (
                   <>
-                    {paginatedTerminals.map(terminal => (
+                    {terminalPages.pageItems.map(terminal => (
                       <button
                         key={terminal._id}
                         onClick={() => setSelectedTerminal(prev =>
@@ -470,11 +484,12 @@ export default function MapPage() {
                     ))}
 
                     <Pagination
-                      page={terminalPage}
-                      total={totalTerminalPages}
-                      onPrev={() => setTerminalPage(p => Math.max(1, p - 1))}
-                      onNext={() => setTerminalPage(p => Math.min(totalTerminalPages, p + 1))}
-                      label={`${terminalPage} / ${totalTerminalPages}`}
+                      page={terminalPages.page}
+                      total={terminalPages.total}
+                      onPrev={terminalPages.prev}
+                      onNext={terminalPages.next}
+                      count={filteredTerminals.length}
+                      noun="terminals"
                     />
                   </>
                 )}
@@ -484,7 +499,7 @@ export default function MapPage() {
             {/* ALERTS */}
             {activeTab === 'alerts' && (
               <div className="p-3 space-y-2">
-                {paginatedAnnouncements.map(a => {
+                {announcementPages.pageItems.map(a => {
                   const style = ANNOUNCEMENT_STYLES[a.type]
                   const Icon  = style.icon
                   return (
@@ -519,11 +534,12 @@ export default function MapPage() {
                 })}
 
                 <Pagination
-                  page={announcementPage}
-                  total={totalAnnouncementPages}
-                  onPrev={() => setAnnouncementPage(p => Math.max(1, p - 1))}
-                  onNext={() => setAnnouncementPage(p => Math.min(totalAnnouncementPages, p + 1))}
-                  label={`${announcementPage} / ${totalAnnouncementPages} · ${announcements.length} alerts`}
+                  page={announcementPages.page}
+                  total={announcementPages.total}
+                  onPrev={announcementPages.prev}
+                  onNext={announcementPages.next}
+                  count={announcements.length}
+                  noun="alerts"
                 />
               </div>
             )}
