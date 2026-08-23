@@ -268,3 +268,15 @@
 @media (prefers-reduced-motion: reduce) {
   .flap-row { animation: none; }
 }
+
+/* ── Leaflet Dark Glassmorphism Tooltip Overrides ─────────────────────────── */
+.leaflet-tooltip.custom-map-tooltip {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+}
+.leaflet-tooltip.custom-map-tooltip::before {
+  display: none !important;
+}
+
