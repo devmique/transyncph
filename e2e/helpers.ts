@@ -1,11 +1,25 @@
 import type { APIRequestContext } from '@playwright/test'
 
-/** Shared test operator. Created once by auth.setup.ts; reruns reuse it. */
+/** Shared test operator. Created once by auth.setup.ts; reruns reuse it.
+ *
+ *  These are real credentials on the real database, so they are never written
+ *  down here - set E2E_EMAIL and E2E_PASSWORD in .env.local (gitignored), or
+ *  as secrets in CI. */
+function required(name: string): string {
+  const value = process.env[name]
+  if (!value) {
+    throw new Error(
+      `${name} is not set. Add E2E_EMAIL and E2E_PASSWORD to .env.local before running the E2E suite.`
+    )
+  }
+  return value
+}
+
 export const OPERATOR = {
   name: 'E2E Tester',
   companyName: 'E2E Transit Lines',
-  email: process.env.E2E_EMAIL || 'e2e-operator@transync.test',
-  password: process.env.E2E_PASSWORD || 'e2e-password-123',
+  email: required('E2E_EMAIL'),
+  password: required('E2E_PASSWORD'),
   phone: '+639170000000',
   city: 'Lipa City',
   region: 'Region IV-A',

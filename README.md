@@ -119,6 +119,25 @@ Visit [http://localhost:3000](http://localhost:3000) to see the application.
 - Mobile app for drivers and commuters
 - Multi-language support (Filipino, English)
 
+## End-to-end tests
+
+Playwright drives the real app against the real database, so the suite needs a
+test operator account. Its credentials are never committed — add them to
+`.env.local` (already gitignored):
+
+```
+E2E_EMAIL=e2e-<something-unique>@transync.test
+E2E_PASSWORD=<a long random password>
+```
+
+The first run registers that operator; later runs reuse it. Each spec creates
+its own terminals, routes and schedules and deletes them afterwards.
+
+```bash
+npm test          # headless, starts the dev server itself
+npm run test:ui   # Playwright UI mode
+```
+
 ## Support
 
 For issues or questions, please open a GitHub issue 
